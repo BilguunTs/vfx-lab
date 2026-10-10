@@ -1,0 +1,86 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://shared/effect_components/particle_layer.gd" id="1_layer"]
+
+[sub_resource type="Curve" id="Curve_scale"]
+_data = [Vector2(0, 0), 0.0, 6.0, 0, 0, Vector2(0.15, 1), 0.0, 0.0, 0, 0, Vector2(1, 0.5), -0.5, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="CurveTexture" id="CurveTex_scale"]
+curve = SubResource("Curve_scale")
+
+[sub_resource type="Gradient" id="Gradient_ramp"]
+offsets = PackedFloat32Array(0, 0.12, 0.5, 1)
+colors = PackedColorArray(2.2, 1.2, 0.65, 0, 2.2, 1.25, 0.7, 1, 1.2, 1.85, 1.6, 0.75, 0.7, 1.15, 1.05, 0)
+
+[sub_resource type="GradientTexture1D" id="Tex_ramp"]
+gradient = SubResource("Gradient_ramp")
+use_hdr = true
+
+[sub_resource type="ParticleProcessMaterial" id="Process_motes"]
+lifetime_randomness = 0.35
+emission_shape = 6
+emission_ring_axis = Vector3(0, 1, 0)
+emission_ring_height = 0.02
+emission_ring_radius = 1.45
+emission_ring_inner_radius = 0.85
+direction = Vector3(0, 1, 0)
+spread = 15.0
+initial_velocity_min = 0.2
+initial_velocity_max = 0.5
+gravity = Vector3(0, 0.15, 0)
+scale_min = 0.6
+scale_max = 1.0
+scale_curve = SubResource("CurveTex_scale")
+color_ramp = SubResource("Tex_ramp")
+turbulence_enabled = true
+turbulence_noise_strength = 1.0
+turbulence_noise_scale = 3.0
+turbulence_influence_min = 0.05
+turbulence_influence_max = 0.15
+
+[sub_resource type="Gradient" id="Gradient_mote"]
+offsets = PackedFloat32Array(0, 0.12, 0.35, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.6, 1, 1, 1, 0.15, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="Tex_mote"]
+gradient = SubResource("Gradient_mote")
+width = 64
+height = 64
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="StandardMaterial3D" id="Mat_mote"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+disable_fog = true
+vertex_color_use_as_albedo = true
+albedo_texture = SubResource("Tex_mote")
+billboard_mode = 3
+billboard_keep_scale = true
+
+[sub_resource type="QuadMesh" id="Mesh_mote"]
+material = SubResource("Mat_mote")
+size = Vector2(0.2, 0.2)
+
+[node name="SpiritMotes" type="Node3D"]
+script = ExtResource("1_layer")
+start_delay = 0.5
+emit_duration = 1.8
+emit_taper = 1.6
+burst_seed = 5
+debug_marker_color = Color(0.4, 1, 0.8, 1)
+strength_speed_power = 0.0
+
+[node name="Particles" type="GPUParticles3D" parent="."]
+emitting = false
+amount = 40
+lifetime = 3.0
+randomness = 0.3
+use_fixed_seed = true
+seed = 5
+visibility_aabb = AABB(-3, -0.5, -3, 6, 4, 6)
+process_material = SubResource("Process_motes")
+draw_pass_1 = SubResource("Mesh_mote")

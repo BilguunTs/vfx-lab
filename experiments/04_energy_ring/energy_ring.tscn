@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://experiments/04_energy_ring/energy_ring.gd" id="1_ring"]
+
+[node name="EnergyRing" type="Node3D"]
+script = ExtResource("1_ring")

@@ -1,0 +1,147 @@
+extends Node3D
+## Experiment 05 — Drum Strike: overlapping, layered strikes.
+##
+## Every play() spawns a new *voice* (an instance of voice_scene holding the short-lived
+## layers: rings, dust, seal, motes) and lets it run to the end, so rapid strikes stack
+## instead of cutting each other off. A voice frees itself once all its layers are idle.
+##
+## Persistent layers are this node's own children (the debris field): they exist once,
+## and every new voice's pulse is handed to them with add_push().
+##
+## Strength, variation, muting and debug are kept here and applied to each new voice.
+
+## How hard the drum is struck. 1 = as authored, 0.3 = a gentle tap, 2 = a violent blow.
+## Each layer decides what strength means for it (see their set_strength()).
+@export_range(0.1, 2.0, 0.05) var strength := 1.0
+## Shifts every layer's random seed: the same strike with different details.
+@export var variation := 0
+## Scene with the per-strike layers. Its PulseRing (if present) is what pushes persistent layers.
+@export var voice_scene: PackedScene
+
+var _voices: Array[Node3D] = []
+var _voice_layer_names := PackedStringArray()
+var _muted := {} # voice layer name -> true
+var _debug := false
+
+
+func _ready() -> void:
+	var prototype := voice_scene.instantiate()
+	for child in prototype.get_children():
+		_voice_layer_names.append(child.name)
+	prototype.free()
+
+
+func play() -> void:
+	var voice: Node3D = voice_scene.instantiate()
+	add_child(voice)
+	for layer in voice.get_children():
+		if _muted.has(layer.name):
+			layer.visible = false
+			continue
+		_configure(layer)
+		layer.play()
+	_voices.append(voice)
+
+	var pulse := voice.get_node_or_null("PulseRing")
+	for layer in _persistent_layers():
+		if not layer.visible:
+			continue
+		_configure(layer)
+		layer.add_push(pulse if pulse and pulse.visible else null)
+
+
+func reset() -> void:
+	for voice in _voices:
+		voice.queue_free()
+	_voices.clear()
+	for layer in _persistent_layers():
+		layer.reset()
+
+
+func set_debug(enabled: bool) -> void:
+	_debug = enabled
+	for voice in _voices:
+		for layer in voice.get_children():
+			layer.set_debug(enabled)
+	for layer in _persistent_layers():
+		layer.set_debug(enabled)
+
+
+func get_debug_text() -> String:
+	var lines := PackedStringArray(["voices playing: %d" % _voices.size()])
+	if not _voices.is_empty():
+		for layer in _voices.back().get_children():
+			if layer.visible:
+				lines.append("  newest " + layer.get_debug_text())
+	for layer in _persistent_layers():
+		lines.append(layer.get_debug_text())
+	return "\n".join(lines)
+
+
+func get_layer_status() -> String:
+	var parts := PackedStringArray()
+	var names := _all_layer_names()
+	for i in names.size():
+		parts.append("[%d] %s %s" % [i + 1, names[i], "MUTED" if _is_muted(i) else "on"])
+	return "   ".join(parts)
+
+
+## Muting a voice layer affects the next strikes; strikes already playing finish as they are.
+func toggle_layer(index: int) -> void:
+	if index < 0:
+		return
+	if index < _voice_layer_names.size():
+		var layer_name := _voice_layer_names[index]
+		if _muted.has(layer_name):
+			_muted.erase(layer_name)
+		else:
+			_muted[layer_name] = true
+		return
+	var persistent := _persistent_layers()
+	index -= _voice_layer_names.size()
+	if index < persistent.size():
+		persistent[index].visible = not persistent[index].visible
+		persistent[index].reset()
+
+
+func _process(_delta: float) -> void:
+	# Free voices whose layers have all finished.
+	for voice in _voices.duplicate():
+		var active := false
+		for layer in voice.get_children():
+			if layer.visible and layer.is_active():
+				active = true
+				break
+		if not active:
+			_voices.erase(voice)
+			voice.queue_free()
+
+
+func _configure(layer: Node) -> void:
+	if layer.has_method("set_strength"):
+		layer.set_strength(strength)
+	if layer.has_method("set_variation"):
+		layer.set_variation(variation)
+	if layer.has_method("set_debug"):
+		layer.set_debug(_debug)
+
+
+func _persistent_layers() -> Array[Node3D]:
+	var layers: Array[Node3D] = []
+	for child in get_children():
+		if child is Node3D and child.has_method("add_push"):
+			layers.append(child)
+	return layers
+
+
+func _all_layer_names() -> PackedStringArray:
+	var names := _voice_layer_names.duplicate()
+	for layer in _persistent_layers():
+		names.append(layer.name)
+	return names
+
+
+func _is_muted(index: int) -> bool:
+	if index < _voice_layer_names.size():
+		return _muted.has(_voice_layer_names[index])
+	return not _persistent_layers()[index - _voice_layer_names.size()].visible
