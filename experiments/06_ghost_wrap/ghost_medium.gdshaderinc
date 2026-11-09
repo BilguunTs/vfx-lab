@@ -9,6 +9,7 @@
 // COLOR (the element's colour over life) multiplies the shading; values above 1 glow.
 
 #include "res://shared/shaders/noise.gdshaderinc"
+#include "res://experiments/06_ghost_wrap/ghost_billboard.gdshaderinc"
 
 uniform vec3 lit_color : source_color = vec3(0.62, 0.7, 0.7);
 uniform vec3 shadow_color : source_color = vec3(0.16, 0.2, 0.22);
@@ -40,15 +41,7 @@ float field(vec3 w) {
 }
 
 void vertex() {
-	vec3 pos = MODEL_MATRIX[3].xyz;
-	vec3 axis = MODEL_MATRIX[1].xyz;
-	float size = length(MODEL_MATRIX[0].xyz);
-	vec3 up = length(axis) > 1e-4 ? normalize(axis) : vec3(0.0, 1.0, 0.0);
-	vec3 to_cam = normalize(CAMERA_POSITION_WORLD - pos);
-	vec3 right = cross(up, to_cam);
-	right = length(right) > 1e-4 ? normalize(right) : vec3(1.0, 0.0, 0.0);
-	vec3 facing = cross(right, up);
-	mat4 world = mat4(vec4(right * size, 0.0), vec4(up * size, 0.0), vec4(facing * size, 0.0), vec4(pos, 1.0));
+	mat4 world = velocity_billboard(MODEL_MATRIX, CAMERA_POSITION_WORLD);
 	MODELVIEW_MATRIX = VIEW_MATRIX * world;
 	MODELVIEW_NORMAL_MATRIX = mat3(MODELVIEW_MATRIX);
 	v_world = (world * vec4(VERTEX, 1.0)).xyz;

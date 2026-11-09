@@ -108,13 +108,27 @@ immediately (the particle system is rebuilt for amount, lifetime and blend mode)
 | Element | Motion | Look | Body edge | Blob |
 | --- | --- | --- | --- | --- |
 | Smoke | Rises slowly, laminar → turbulent, widens 4× | Soft, self-shadowed, pale jade | Faint jade glow | Churning orb |
-| Fire | Fast upward tongues, short life (0.9 s), strong buoyancy | **Additive**: white-yellow → orange → deep red → gone | Body chars dark ahead of a glowing orange line | Fireball, slight swirl |
+| Fire | Fast upward tongues, short life (0.9 s), strong buoyancy; **sparks** and **embers** (accents) | **Additive**: white-yellow → orange → deep red → gone | Body chars dark ahead of a glowing orange line | Fireball, slight swirl |
 | Water | Falls under gravity (−9 m/s²), droplets stretched along the fall, **collide with the floor** | Dark glossy blue, highlights only where thin | Body darkens as if wet | Water sphere held in the air |
 | Wind | Blown one way (4 m/s² sideways), long thin streaks | Barely visible dusty strokes | — | Whirlwind (vector-field swirl) |
 
+### Accents (sparks, embers)
+
+An element can carry secondary layers in `accents` (`ghost_accent.gd`, a Resource). They share
+the medium's emission points and are drawn by `ghost_spark.gdshader`: a tiny additive streak
+with a bright core, stretched along its motion, with per-particle flicker. Fire has two:
+
+| Accent | Behaviour | Why |
+| --- | --- | --- |
+| `fire_sparks.tres` | 70, thrown out fast (2.6 m/s), arc down under gravity, 0.6 s, white-hot → orange; `rate_follows_motion` 0.8 | Sparks come from *change*: they crackle while the front moves and drop to 20 % when the fire is steady |
+| `fire_embers.tres` | 45, slow (0.35 m/s), drift up on the heat, flutter (turbulence), twinkle, 2.6 s | The steady afterlife of a fire: they keep rising while the body burns |
+
+`rate_follows_motion` blends between a steady rate and one driven by how fast the dissolve
+front is moving, so accents can react to the *transition* rather than just its state.
+
 Shaders: `ghost_medium.gdshaderinc` is the shared puff logic; `ghost_medium_mix.gdshader`
 (alpha blend: smoke, water, wind) and `ghost_medium_add.gdshader` (additive: fire) only set the
-blend mode. Fire must be additive: light never darkens what's behind it.
+blend mode. `ghost_billboard.gdshaderinc` holds the velocity-aligned billboard both use. Fire must be additive: light never darkens what's behind it.
 
 **Principle: the medium's physics *is* its identity.** The same particle system reads as four
 different things mainly through acceleration direction, lifetime, stretch and blend mode, much
@@ -184,7 +198,9 @@ Everything is live: edit it in the Remote inspector while the game runs (element
 - `wander` on (in `ghost_wrap_demo.tscn` on the root): the smoke trails behind a moving body.
 - A new element: duplicate `smoke.tres`. Ideas: ash (grey, falls slowly, drifts), spirit
   (additive jade, rises, swirls), sand (falls, collides, no stretch).
-- Embers for fire: a second small particle layer (sparks) — the next step for fire.
+- Fire accents: sparks `rate_follows_motion` 0 vs 0.8 (constant fizz vs. crackle on change);
+  embers `gravity.y` 0.7 vs 0.2 (hot updraft vs. dying fire).
+- Accents for other elements: water splashes (fast, falling, short), spirit motes for smoke.
 - Dark smoke (`lit_color` / `shadow_color` near black, higher `opacity`) for a malevolent spirit. Does the dark
   background still read it?
 - `field_scale` 1.2 (big lazy billows) vs 4 (fine, busy smoke): which matches the figure's scale?

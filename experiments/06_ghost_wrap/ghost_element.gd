@@ -28,6 +28,9 @@ extends Resource
 ## Height / width, stretched along the motion. 1 = round.
 @export_range(1.0, 8.0, 0.05) var stretch := 1.7
 
+## Secondary layers (sparks, embers...) emitted with the medium.
+@export var accents: Array[GhostAccent] = []
+
 @export_group("Density field")
 ## Frequency of the shared density field per metre: low = big billows, high = fine detail.
 @export_range(0.2, 20.0, 0.1) var field_scale := 2.2

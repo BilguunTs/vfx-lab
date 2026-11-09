@@ -174,3 +174,16 @@
   pull 2 → 0.6, `blob_stretch` per element).
 - Test-harness note: scripted screenshots hang when the test window is covered (macOS stops
   drawing it). Run with `--always-on-top`.
+
+## 2026-11-09 — Fire accents: sparks and embers
+
+- New `GhostAccent` resource: small additive particle layers an element carries in
+  `accents`, sharing the medium's emission points. `ghost_spark.gdshader`: bright core + halo,
+  velocity-stretched, irregular per-particle twinkle. Billboard code extracted to
+  `ghost_billboard.gdshaderinc`.
+- Sparks: fast, gravity-arced, 0.6 s, rate tied to how fast the dissolve front moves
+  (`rate_follows_motion`): they crackle during transitions and calm to 20 % at rest.
+  Embers: slow, buoyant, fluttering, twinkling, 2.6 s, steady.
+- **Lesson — tie accents to change, not state.** Sparks at a constant rate read as a sparkler;
+  driven by the front's speed they read as the act of burning. Reveal (body re-forming out of
+  fire) showers sparks around the robe and is the most striking moment.

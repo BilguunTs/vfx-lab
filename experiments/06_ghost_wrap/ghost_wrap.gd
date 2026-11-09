@@ -23,6 +23,7 @@ extends Node3D
 const BODY_SHADER := preload("res://experiments/06_ghost_wrap/ghost_body.gdshader")
 const MEDIUM_MIX_SHADER := preload("res://experiments/06_ghost_wrap/ghost_medium_mix.gdshader")
 const MEDIUM_ADD_SHADER := preload("res://experiments/06_ghost_wrap/ghost_medium_add.gdshader")
+const SPARK_SHADER := preload("res://experiments/06_ghost_wrap/ghost_spark.gdshader")
 const EMISSION_POINTS := 512 # emission points, re-chosen as the front moves
 const POOL_POINTS := 2048    # candidate surface samples they are chosen from
 const SWIRL_RES := 16        # resolution of the blob's swirl vector field
@@ -87,6 +88,9 @@ var _time := 0.0                   # game time for shaders (TIME ignores Engine.
 var _default_element := GhostElement.new()
 var _built_element: GhostElement   # element the particles were built for
 var _particles: GPUParticles3D
+var _accents: Array[Dictionary] = [] # {accent, particles, process, material}
+var _last_front := 0.0
+var _edge_motion := 0.0            # 0..1, how fast the dissolve front is moving (smoothed)
 var _process_mat: ParticleProcessMaterial
 var _medium_material: ShaderMaterial
 var _attractor: GPUParticlesAttractorSphere3D
@@ -130,6 +134,8 @@ func rebuild() -> void:
 func clear_smoke() -> void:
 	if _particles:
 		_particles.restart()
+	for entry in _accents:
+		entry.particles.restart()
 
 
 func set_debug(enabled: bool) -> void:
@@ -171,6 +177,10 @@ func _process(delta: float) -> void:
 			_restore_materials()
 	if _swapped:
 		_update_materials()
+	var front := _front()
+	var speed := absf(front - _last_front) / maxf(delta, 1e-4)
+	_last_front = front
+	_edge_motion = lerpf(_edge_motion, clampf(speed / 0.5, 0.0, 1.0), clampf(delta * 10.0, 0.0, 1.0))
 	_update_emission()
 	_update_particles()
 	if _debug_view.visible:
@@ -473,7 +483,66 @@ func _build_particles() -> void:
 	_particles.draw_pass_1 = quad
 	_particles.amount_ratio = 0.0
 	add_child(_particles)
+
+	for entry in _accents:
+		entry.particles.queue_free()
+	_accents.clear()
+	for accent in el.accents:
+		if accent:
+			_accents.append(_build_accent(accent))
 	_update_particles()
+
+
+## A small additive particle layer (sparks, embers) sharing the medium's emission points.
+func _build_accent(accent: GhostAccent) -> Dictionary:
+	var process := ParticleProcessMaterial.new()
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_DIRECTED_POINTS
+	process.emission_point_texture = _point_texture
+	process.emission_normal_texture = _normal_texture
+	process.emission_point_count = EMISSION_POINTS
+	process.particle_flag_align_y = true
+	process.initial_velocity_min = accent.push * 0.5
+	process.initial_velocity_max = accent.push
+	process.spread = accent.spread
+	process.gravity = accent.gravity
+	process.damping_min = accent.damping * 0.7
+	process.damping_max = accent.damping
+	process.scale_min = 0.6
+	process.scale_max = 1.0
+	if accent.turbulence > 0.0:
+		process.turbulence_enabled = true
+		process.turbulence_noise_scale = 1.5
+		process.turbulence_influence_min = accent.turbulence * 0.5
+		process.turbulence_influence_max = accent.turbulence
+	var ramp := accent.color_over_life
+	if not ramp:
+		ramp = Gradient.new()
+		ramp.colors = PackedColorArray([Color(3, 2, 1, 1), Color(1, 0.2, 0, 0)])
+	var ramp_texture := GradientTexture1D.new()
+	ramp_texture.gradient = ramp
+	ramp_texture.use_hdr = true
+	process.color_ramp = ramp_texture
+
+	var material := ShaderMaterial.new()
+	material.shader = SPARK_SHADER
+	material.set_shader_parameter("flicker", accent.flicker)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(accent.size, accent.size * accent.stretch)
+	quad.material = material
+
+	var particles := GPUParticles3D.new()
+	particles.name = accent.display_name
+	particles.amount = accent.amount
+	particles.lifetime = accent.lifetime
+	particles.randomness = accent.lifetime_randomness
+	particles.local_coords = false
+	particles.visibility_aabb = AABB(Vector3(-4.0, -2.0, -4.0), Vector3(8.0, _bounds.size.y + 5.0, 8.0))
+	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	particles.process_material = process
+	particles.draw_pass_1 = quad
+	particles.amount_ratio = 0.0
+	add_child(particles)
+	return {accent = accent, particles = particles, process = process, material = material}
 
 
 func _update_particles() -> void:
@@ -512,6 +581,13 @@ func _update_particles() -> void:
 	m.set_shader_parameter("softness", el.softness)
 	m.set_shader_parameter("shade_contrast", el.shade_contrast)
 	m.set_shader_parameter("scaled_time", _time)
+
+	for entry in _accents:
+		var accent: GhostAccent = entry.accent
+		var rate := lerpf(1.0, _edge_motion, accent.rate_follows_motion)
+		entry.particles.emitting = particles_enabled
+		entry.particles.amount_ratio = clampf(intensity * rate, 0.0, 1.0)
+		entry.material.set_shader_parameter("scaled_time", _time)
 
 	var center := _blob_center_local()
 	_attractor.position = center

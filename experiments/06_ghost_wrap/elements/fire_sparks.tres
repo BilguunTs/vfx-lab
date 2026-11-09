@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="GhostAccent" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://experiments/06_ghost_wrap/ghost_accent.gd" id="1_ac"]
+
+[sub_resource type="Gradient" id="Gradient_sparks"]
+offsets = PackedFloat32Array(0, 0.25, 0.7, 1)
+colors = PackedColorArray(5, 3.6, 1.8, 1, 4, 1.8, 0.5, 1, 2, 0.45, 0.06, 0.8, 0.4, 0.04, 0, 0)
+
+[resource]
+script = ExtResource("1_ac")
+display_name = "Sparks"
+amount = 70
+lifetime = 0.6
+lifetime_randomness = 0.6
+color_over_life = SubResource("Gradient_sparks")
+size = 0.025
+stretch = 7.0
+push = 2.6
+spread = 55.0
+gravity = Vector3(0, -5, 0)
+damping = 1.2
+flicker = 0.25
+rate_follows_motion = 0.8
