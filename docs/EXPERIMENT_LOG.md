@@ -141,3 +141,16 @@
   point. Now it is read at the moment intensity *leaves* 0 or 1.
 - Verified with a scripted render (screenshots of feet ghosting, full ghost, head revealing,
   back to model, hand ghosting) and a mid-transition reversal (front continuous, mode kept).
+
+## 2026-11-09 — Ghost wrap: optional smoke blob
+
+- `blob_enabled`: from intensity 0.7 to 1 the emission points slide onto a sphere and a
+  `GPUParticlesAttractorSphere3D` holds the smoke there, so full ghost is a churning orb.
+- **Lesson — velocity stretch + attractor = petals.** Puffs swing through the attractor fast;
+  stretched along velocity, every swing became a radial streak (a dandelion). In the blob,
+  puffs go round and drag rises (late, blob²) so they settle and churn.
+- **Lesson — light from the field, never from the sprite.** Thin-edge brightening used the
+  puff's own round window, giving each puff a bright rim. Invisible while puffs overlapped
+  heavily, obvious as rings once they were round and sparse. Now it uses the shared field only.
+- Small, round, non-overlapping puffs read as dots again (same lesson as the first pass):
+  blob puffs are 1.3× larger so they merge.

@@ -6,7 +6,7 @@ A reusable component that dissolves any set of meshes into smoke, driven by one 
 | --- | --- |
 | 0 | The model as authored (original materials, no smoke) |
 | 0.5 | Part solid, part smoke |
-| 1 | No body left, only a floating smoke shape of the figure |
+| 1 | No body left, only a floating smoke shape of the figure (or, with `blob_enabled`, a churning smoke orb) |
 
 Transitions spread from a **reveal point** you place anywhere on or around the body. Leaving 0
 (ghosting), the area around the point dissolves first. Leaving 1 (revealing), the area around
@@ -27,8 +27,9 @@ with the drum hidden and the camera closer.
 | Space | Toggle the target value 0 ↔ 1 (1.6 s for a full ramp) |
 | Q / E | Step the target value down / up by 0.25 |
 | P | Next reveal point: Feet → Head → RightHand (used from the next transition) |
+| B | Toggle the smoke blob (orb at full ghost) |
 | 1 / 2 | Mute dissolve / smoke |
-| D | Debug: reveal origin (white cross), dissolve front (yellow circles), current smoke emission points (cyan) |
+| D | Debug: reveal origin (white cross), dissolve front (yellow circles), current smoke emission points (cyan), blob sphere (violet) |
 | T, L, R | Slow motion, loop, reset |
 
 ## Using it on anything
@@ -82,6 +83,12 @@ figure (ramp, hover, optional wander, reveal-point keys).
 | Dense parts self-shadow, thin parts glow with scattered light | Shaded from the field's density gradient: `smoke_lit_color` / `smoke_shadow_color` |
 | Rises because it's warm (buoyancy) | `smoke_rise` acceleration + upward-scrolling field |
 
+- **Blob (optional, `blob_enabled`):** from `blob_start` (0.7) to 1, each emission point slides
+  from the body surface to its own point inside a sphere (`blob_center`, default chest height).
+  A `GPUParticlesAttractorSphere3D` pulls puffs back toward the centre, rise is swapped for
+  `blob_rise`, puffs turn round (no velocity stretch) and drag goes up. Going back from 1, the
+  orb spreads over the body again before the body re-forms from the reveal point.
+
 **Principle: replace, don't remove.** Smoke comes exactly from where the body disappears (most
 of it at the moving edge), so the eye reads the body as *becoming* smoke rather than being cut away.
 
@@ -102,6 +109,11 @@ of it at the moving edge), so the eye reads the body as *becoming* smoke rather 
 | `smoke_rise`, `smoke_push`, `smoke_turbulence` | 0.45, 0.15, 0.35 | Buoyancy, outward push, curl (ramps up with age) |
 | Shader: `field_scale`, `field_rise`, `warp`, `thin_start/end`, `shade_contrast` | in `ghost_smoke.gdshader` | Size of smoke structure, scroll, curliness, dispersal, self-shadow |
 | `edge_smoke` | 2 | Extra smoke from the moving edge vs. fully dissolved areas. 0 = even |
+| `blob_enabled` | off | Gather the smoke into an orb near full intensity |
+| `blob_center`, `blob_radius` | chest, 0.45 m | Where and how big (optional node for placement) |
+| `blob_start` | 0.7 | Intensity where the smoke starts moving onto the sphere |
+| `blob_pull`, `blob_damping` | 3, 2.5 | Attractor strength and drag once formed: how tight and calm the orb is |
+| `blob_rise`, `blob_puff_scale` | 0.05, 1.3 | Buoyancy and puff size inside the orb |
 
 *Rebuild* parameters only apply when `rebuild()` runs (on ready). Everything else is live:
 edit it in the Remote inspector while the game runs.
@@ -113,6 +125,8 @@ edit it in the Remote inspector while the game runs.
 - Press Space mid-ramp: the transition reverses smoothly from wherever it is.
 - Same reveal point, both directions: from Feet, ghosting eats the legs first; reveal from Feet
   and the legs come back first. Compare with Head (**P**).
+- **B** on, Space: the figure dissolves into smoke, which then gathers into an orb. Space
+  again: the orb unravels over the body and the body re-forms.
 - Q/E to 0.5 and hold: the half state is stable, and smoke keeps pouring from the edge.
 - **T** slow motion: the edge noise flows *up*, the same direction as the smoke.
 
@@ -133,6 +147,8 @@ edit it in the Remote inspector while the game runs.
 ## Try next
 
 - `edge_smoke` 0 vs 2 vs 6: smoke from the whole dissolved area vs. a burning edge.
+- Blob: `blob_pull` 1 (loose, breathing) vs 8 (tight core); `blob_start` 0.4 vs 0.9 (how much
+  of the transition is spent as a body-shaped cloud).
 - `edge_band` 0.05 (sharp, burning-paper front) vs 0.4 (slow misty blend).
 - `smoke_rise` −0.1 (sinking, cold) vs 0.45 vs 1.0 (rising, hot). Which is more *ghost*?
 - `body_opacity` 0.6: a fully translucent spirit vs. a solid body with a missing lower half.

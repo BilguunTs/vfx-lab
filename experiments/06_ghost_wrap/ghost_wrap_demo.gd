@@ -4,7 +4,7 @@ extends Node3D
 ## target meshes, `intensity` and `reveal_point`.
 ##
 ## Keys (on top of the lab's): SPACE toggles 0 <-> 1, Q / E step the target value down / up,
-## P cycles the reveal point (children of Body/RevealPoints).
+## P cycles the reveal point (children of Body/RevealPoints), B toggles the smoke blob.
 
 const VALUE_STEP := 0.25
 
@@ -57,9 +57,10 @@ func get_debug_text() -> String:
 
 
 func get_layer_status() -> String:
-	return "[1] Fade %s   [2] Smoke %s      value %.2f -> %.2f (Q/E)   reveal point: %s (P)" % [
+	return "[1] Fade %s   [2] Smoke %s      value %.2f -> %.2f (Q/E)   reveal point: %s (P)   blob %s (B)" % [
 		"on" if _ghost.fade_enabled else "MUTED", "on" if _ghost.smoke_enabled else "MUTED",
-		_value, _target, _ghost.reveal_point.name if _ghost.reveal_point else "none"]
+		_value, _target, _ghost.reveal_point.name if _ghost.reveal_point else "none",
+		"on" if _ghost.blob_enabled else "off"]
 
 
 func toggle_layer(index: int) -> void:
@@ -79,6 +80,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_target = clampf(snappedf(_target + VALUE_STEP, VALUE_STEP), 0.0, 1.0)
 		KEY_P:
 			_select_reveal(_reveal_index + 1)
+		KEY_B:
+			_ghost.blob_enabled = not _ghost.blob_enabled
 
 
 func _select_reveal(index: int) -> void:

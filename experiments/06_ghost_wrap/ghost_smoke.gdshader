@@ -71,8 +71,9 @@ void fragment() {
 	// reaches it easily (lit top edge); if denser just above, it sits in shadow.
 	float d_above = field(v_world + vec3(0.0, 0.12, 0.0));
 	float lit = clamp(0.5 + (d - d_above) * shade_contrast, 0.0, 1.0);
-	// Thin smoke scatters light: thin edges lean toward the lit colour.
-	lit = mix(lit, 1.0, 1.0 - smoothstep(0.0, 0.6, density));
+	// Thin smoke scatters light: thin parts of the *field* lean toward the lit colour.
+	// (Not the puff's own window: that gives every puff a bright rim -> reads as bubbles.)
+	lit = mix(lit, 1.0, 1.0 - smoothstep(threshold, threshold + 0.4, d));
 
 	float alpha = density * opacity * COLOR.a;
 

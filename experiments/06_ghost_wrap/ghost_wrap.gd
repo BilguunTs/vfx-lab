@@ -77,6 +77,23 @@ const POOL_POINTS := 2048    # candidate surface samples they are chosen from
 ## Same seed = same emission pattern. Pool takes effect on rebuild().
 @export var emission_seed := 1
 
+@export_group("Blob")
+## Near full intensity, gather the smoke into a churning sphere instead of the body's shape.
+@export var blob_enabled := false
+## Where the blob forms. Empty = chest height (62 % of the body) above the body's centre.
+@export var blob_center: Node3D
+@export_range(0.05, 3.0, 0.01, "suffix:m") var blob_radius := 0.45
+## Intensity where the smoke starts moving from the body onto the sphere (done at 1).
+@export_range(0.0, 0.99, 0.01) var blob_start := 0.7
+## How hard puffs are pulled back toward the centre once the blob has formed.
+@export_range(0.0, 20.0, 0.1) var blob_pull := 3.0
+## Buoyancy once the blob has formed (replaces smoke_rise), so it holds together.
+@export_range(-1.0, 2.0, 0.01, "suffix:m/s²") var blob_rise := 0.05
+## Puff size once the blob has formed, relative to smoke_size.
+@export_range(0.1, 2.0, 0.01) var blob_puff_scale := 1.3
+## Drag once the blob has formed. Higher = puffs settle and churn instead of overshooting.
+@export_range(0.0, 10.0, 0.1) var blob_damping := 2.5
+
 var _surfaces: Array[Dictionary] = [] # {mesh, surface, original, ghost}
 var _swapped := false
 var _bounds := AABB()              # body space
@@ -89,7 +106,8 @@ var _rest := 0                     # 0 or 1 while resting at that value, -1 mid-
 var _origin := Vector3.ZERO        # latched reveal origin, body space
 var _origin_name := "body base"
 var _origin_reach := 1.0           # distance from origin to the farthest part of the body
-var _last_front := NAN
+var _last_emission_key := Vector2(NAN, NAN) # (front, blob) the emission points were chosen for
+var _attractor: GPUParticlesAttractorSphere3D
 var _time := 0.0                   # game time for shaders (TIME ignores Engine.time_scale)
 var _particles: GPUParticles3D
 var _process_mat: ParticleProcessMaterial
@@ -125,7 +143,7 @@ func rebuild() -> void:
 	_sample_surfaces()
 	_build_smoke()
 	_latch_origin()
-	_last_front = NAN
+	_last_emission_key = Vector2(NAN, NAN)
 
 
 ## Removes all smoke immediately.
@@ -139,8 +157,8 @@ func set_debug(enabled: bool) -> void:
 
 
 func get_debug_text() -> String:
-	return "GhostWrap: intensity %.2f   %s from %s   front %.2f   smoke rate %d/%d   %d emission points" % [
-		intensity, "ghosting" if _ghost_inside else "revealing", _origin_name, _front(),
+	return "GhostWrap: intensity %.2f   %s from %s   front %.2f   blob %.2f   smoke rate %d/%d   %d emission points" % [
+		intensity, "ghosting" if _ghost_inside else "revealing", _origin_name, _front(), _blob_amount(),
 		int(smoke_amount * _particles.amount_ratio) if _particles else 0, smoke_amount, _emit_pos.size()]
 
 
@@ -299,15 +317,32 @@ func _sample_surfaces() -> void:
 		_pool_nrm.append((na + (corner_normals[t * 3 + 1] - na) * u + (corner_normals[t * 3 + 2] - na) * v).normalized())
 
 
+## 0 = smoke in the body's shape, 1 = smoke gathered into the blob sphere.
+func _blob_amount() -> float:
+	return smoothstep(blob_start, 1.0, intensity) if blob_enabled else 0.0
+
+
+## Blob centre in body space.
+func _blob_center_local() -> Vector3:
+	if blob_center and is_instance_valid(blob_center):
+		return global_transform.affine_inverse() * blob_center.global_position
+	var c := _bounds.get_center()
+	return Vector3(c.x, _bounds.position.y + _bounds.size.y * 0.62, c.z)
+
+
 ## Re-chooses the emission points from the pool whenever the front moves: dissolved areas
-## emit, the moving edge emits extra, solid areas emit nothing.
+## emit, the moving edge emits extra, solid areas emit nothing. With the blob forming, each
+## point slides from the body surface toward its own point on the blob sphere.
 func _update_emission() -> void:
 	if not _particles or _pool_pos.is_empty():
 		return
 	var front := _front()
-	if absf(front - _last_front) < 0.002:
+	var blob := _blob_amount()
+	var key := Vector2(front, blob)
+	if absf(key.x - _last_emission_key.x) < 0.002 and absf(key.y - _last_emission_key.y) < 0.002:
 		return
-	_last_front = front
+	_last_emission_key = key
+	var center := _blob_center_local()
 
 	var cumulative := PackedFloat32Array()
 	cumulative.resize(_pool_pos.size())
@@ -327,6 +362,11 @@ func _update_emission() -> void:
 		var k := mini(cumulative.bsearch(rng.randf() * total), _pool_pos.size() - 1)
 		var p := _pool_pos[k]
 		var n := _pool_nrm[k]
+		# Always draw the sphere direction, so the selection stays identical with the blob off.
+		var dir := Vector3(rng.randfn(), rng.randfn(), rng.randfn()).normalized()
+		if blob > 0.0:
+			p = p.lerp(center + dir * blob_radius * sqrt(rng.randf()), blob)
+			n = n.lerp(dir, blob).normalized()
 		_emit_pos[i] = p
 		_emit_nrm[i] = n
 		_point_image.set_pixel(i, 0, Color(p.x, p.y, p.z))
@@ -392,6 +432,16 @@ func _build_smoke() -> void:
 	_particles.draw_pass_1 = quad
 	_particles.amount_ratio = 0.0
 	add_child(_particles)
+
+	# Holds the blob together: pulls world-space puffs back toward the centre.
+	if _attractor:
+		_attractor.queue_free()
+	_attractor = GPUParticlesAttractorSphere3D.new()
+	_attractor.name = "BlobAttractor"
+	_attractor.directionality = 0.0
+	_attractor.attenuation = 0.6
+	_attractor.strength = 0.0
+	add_child(_attractor)
 	_update_smoke()
 
 
@@ -402,10 +452,19 @@ func _update_smoke() -> void:
 	_particles.amount_ratio = intensity
 	_process_mat.initial_velocity_min = smoke_push * 0.4
 	_process_mat.initial_velocity_max = smoke_push
-	_process_mat.gravity = Vector3(0.0, smoke_rise, 0.0)
+	var blob := _blob_amount()
+	_process_mat.gravity = Vector3(0.0, lerpf(smoke_rise, blob_rise, blob), 0.0)
 	_process_mat.turbulence_influence_min = smoke_turbulence * 0.5
 	_process_mat.turbulence_influence_max = smoke_turbulence
-	(_particles.draw_pass_1 as QuadMesh).size = Vector2(smoke_size, smoke_size * smoke_stretch)
+	# In the blob, puffs swing through the centre: velocity stretch would turn every swing into a
+	# radial streak, and low drag keeps them overshooting. Round puffs + high drag = a churning orb.
+	_process_mat.damping_min = lerpf(0.3, blob_damping * 0.75, blob * blob)
+	_process_mat.damping_max = lerpf(0.6, blob_damping, blob * blob)
+	var size := smoke_size * lerpf(1.0, blob_puff_scale, blob)
+	(_particles.draw_pass_1 as QuadMesh).size = Vector2(size, size * lerpf(smoke_stretch, 1.0, blob))
+	_attractor.position = _blob_center_local()
+	_attractor.radius = blob_radius * 3.0
+	_attractor.strength = blob_pull * blob
 	_smoke_material.set_shader_parameter("lit_color", smoke_lit_color)
 	_smoke_material.set_shader_parameter("shadow_color", smoke_shadow_color)
 	_smoke_material.set_shader_parameter("opacity", smoke_opacity)
@@ -424,7 +483,7 @@ func _curve_texture(points: Array[Vector2], end_tangent := 0.0) -> CurveTexture:
 
 
 ## Debug: current emission points with push direction (cyan), the reveal origin (white cross),
-## and the dissolve front as three great circles (yellow).
+## the dissolve front as three great circles (yellow), and the blob sphere (violet) when forming.
 func _draw_debug() -> void:
 	_debug_mesh.clear_surfaces()
 	_debug_mesh.surface_begin(Mesh.PRIMITIVE_LINES)
@@ -447,4 +506,13 @@ func _draw_debug() -> void:
 				var a1 := TAU * (s + 1) / 48.0
 				_debug_mesh.surface_add_vertex(_origin + (plane[0] * cos(a0) + plane[1] * sin(a0)) * radius)
 				_debug_mesh.surface_add_vertex(_origin + (plane[0] * cos(a1) + plane[1] * sin(a1)) * radius)
+	if _blob_amount() > 0.0:
+		var c := _blob_center_local()
+		_debug_mesh.surface_set_color(Color(0.75, 0.55, 1.0))
+		for plane in [[Vector3.RIGHT, Vector3.UP], [Vector3.RIGHT, Vector3.BACK], [Vector3.UP, Vector3.BACK]]:
+			for s in 48:
+				var a0 := TAU * s / 48.0
+				var a1 := TAU * (s + 1) / 48.0
+				_debug_mesh.surface_add_vertex(c + (plane[0] * cos(a0) + plane[1] * sin(a0)) * blob_radius)
+				_debug_mesh.surface_add_vertex(c + (plane[0] * cos(a1) + plane[1] * sin(a1)) * blob_radius)
 	_debug_mesh.surface_end()
