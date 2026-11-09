@@ -35,7 +35,9 @@ The lab plays the current effect once on start.
 
 ## Tweaking live
 
-Run with F5, open **Remote** in the Scene dock, select a layer such as `Lab/EffectSlot/DrumStrike/PulseRing` and edit its
+Quickest: press **Tab** in the running lab for sliders (see the controls above).
+
+Or run with F5, open **Remote** in the Scene dock, select a layer such as `Lab/EffectSlot/DrumStrike/PulseRing` and edit its
 exported parameters in the Inspector. Press **L** so it keeps replaying while you tweak.
 Remote edits are lost when the game stops — copy values you like into the scene.
 
@@ -47,6 +49,13 @@ experiments/    one folder per experiment, each with its own README
 shared/         code reused by 2+ experiments (noise shader include, debug lines, particle layer)
 docs/           EXPERIMENT_LOG.md — what was tried and learned
 ```
+
+**Ground.** `lab/ground.gdshader` is procedural packed earth: damp/dry patches, mottling,
+irregular pebbles, dry cracks in the light patches, a slight bump, and a trampled ring around
+the origin (`worn_strength` 0 removes it). `lab/stone_scatter.gd` places low-poly stones and a few
+boulders beyond the debris field (fixed `noise_seed`). The detail is deliberate: distortion
+effects like the shockwave only show where there's something to bend. Tune both by selecting
+`Floor` / `Stones` in `lab/lab.tscn`; **G** swaps in a test grid.
 
 `Lab.striker` (the drum stand-in) is optional: with it, Space swings the beater and the effect
 plays on its `impacted` signal; clear it to fire effects instantly.

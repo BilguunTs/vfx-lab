@@ -1,9 +1,11 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://lab/lab.gd" id="1_lab"]
 [ext_resource type="Script" path="res://lab/orbit_camera.gd" id="2_cam"]
 [ext_resource type="PackedScene" path="res://experiments/05_drum_strike/drum_strike.tscn" id="3_strike"]
 [ext_resource type="Script" path="res://experiments/05_drum_strike/drum_stand_in.gd" id="4_drum"]
+[ext_resource type="Shader" path="res://lab/ground.gdshader" id="5_ground"]
+[ext_resource type="Script" path="res://lab/stone_scatter.gd" id="6_stones"]
 
 [sub_resource type="Environment" id="Environment_lab"]
 background_mode = 1
@@ -23,9 +25,8 @@ fog_density = 0.02
 [sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
 size = Vector2(200, 200)
 
-[sub_resource type="StandardMaterial3D" id="Mat_floor"]
-albedo_color = Color(0.34, 0.34, 0.32, 1)
-roughness = 1.0
+[sub_resource type="ShaderMaterial" id="Mat_floor"]
+shader = ExtResource("5_ground")
 
 [node name="Lab" type="Node3D" node_paths=PackedStringArray("striker")]
 script = ExtResource("1_lab")
@@ -43,6 +44,9 @@ shadow_enabled = true
 [node name="Floor" type="MeshInstance3D" parent="."]
 mesh = SubResource("PlaneMesh_floor")
 surface_material_override/0 = SubResource("Mat_floor")
+
+[node name="Stones" type="Node3D" parent="."]
+script = ExtResource("6_stones")
 
 [node name="Drum" type="Node3D" parent="."]
 transform = Transform3D(0.8660254, 0, -0.5, 0, 1, 0, 0.5, 0, 0.8660254, 0, 0, 0)

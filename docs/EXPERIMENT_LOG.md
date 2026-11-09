@@ -211,3 +211,14 @@
 - DrumStrike records tweaks (`set_tuning`) and applies them to each new voice, since every
   strike is a fresh instance and direct edits would be lost.
 - Generic: any effect offering get_tunable_layers / get_tunable / set_tuning gets the panel.
+
+## 2026-11-09 — Lab ground
+
+- Flat grey floor replaced by `lab/ground.gdshader`: packed earth with damp/dry patches,
+  irregular pebbles (lighter *and* darker than the earth), Voronoi dry cracks only in dry
+  patches, a fine bump, and a trampled ring around the drum. `lab/stone_scatter.gd`: flat-shaded
+  low-poly stones (4 shapes via MultiMesh, clustered) and boulders beyond the debris field.
+- Kept average brightness equal to the old floor (measured on frames), so tuned effects still read.
+- **Lessons.** `source_color` uniforms are sRGB: the first pass came out 35 % darker than
+  intended. Round pebbles at one tone read as snow / polka dots; varied tone and lumpy outlines
+  fixed it. For distortion, *lines* (cracks) sell the bend far better than isolated dots.
