@@ -1,15 +1,19 @@
 # Spirit Forge — VFX Lab
 
 Personal R&D playground for stylized supernatural VFX in Godot 4.6 (Forward+, GDScript).
-The project brief lives in [main.md](main.md).
+The project brief lives in [CLAUDE.md](CLAUDE.md).
 
 ## Run
 
-Open the folder in Godot 4.6 and press **F5**, or from a terminal:
+Open the folder in Godot 4.6 and press **F5**, or from a terminal (macOS):
 
 ```
-Godot_v4.6-stable_mono_win64.exe --path D:\DevEnv\GDOT\vfx-lab
+/Applications/Godot.app/Contents/MacOS/Godot --path .
 ```
+
+On a fresh clone, open the project in the editor once (or run the same binary with
+`--headless --import`) before running from the terminal. `.godot/` is not committed, and without its
+global class cache scripts that use `class_name` types such as `DebugDraw` fail to parse.
 
 The lab plays the current effect once on start.
 
