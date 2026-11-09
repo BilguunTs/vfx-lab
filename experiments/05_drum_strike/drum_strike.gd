@@ -9,6 +9,10 @@ extends Node3D
 ## and every new voice's pulse is handed to them with add_push().
 ##
 ## Strength, variation, muting and debug are kept here and applied to each new voice.
+##
+## Live tuning: voices are fresh instances, so a tweak to one would be lost on the next strike.
+## Tweaks go through set_tuning() instead: they are recorded and applied to every new voice.
+## get_tunable() returns a template instance (out of the tree) that shows the current values.
 
 ## How hard the drum is struck. 1 = as authored, 0.3 = a gentle tap, 2 = a violent blow.
 ## Each layer decides what strength means for it (see their set_strength()).
@@ -22,9 +26,12 @@ var _voices: Array[Node3D] = []
 var _voice_layer_names := PackedStringArray()
 var _muted := {} # voice layer name -> true
 var _debug := false
+var _template: Node3D              # voice instance kept out of the tree, holds tuned values
+var _tuning := {}                  # voice layer name -> {property: value}
 
 
 func _ready() -> void:
+	_template = voice_scene.instantiate()
 	var prototype := voice_scene.instantiate()
 	for child in prototype.get_children():
 		_voice_layer_names.append(child.name)
@@ -36,6 +43,12 @@ func _ready() -> void:
 	prototype.queue_free()
 
 
+func _exit_tree() -> void:
+	if _template:
+		_template.free()
+		_template = null
+
+
 func play() -> void:
 	var voice: Node3D = voice_scene.instantiate()
 	add_child(voice)
@@ -43,6 +56,8 @@ func play() -> void:
 		if _muted.has(layer.name):
 			layer.visible = false
 			continue
+		for property in _tuning.get(layer.name, {}):
+			layer.set(property, _tuning[layer.name][property])
 		_configure(layer)
 		layer.play()
 	_voices.append(voice)
@@ -107,6 +122,34 @@ func toggle_layer(index: int) -> void:
 	if index < persistent.size():
 		persistent[index].visible = not persistent[index].visible
 		persistent[index].reset()
+
+
+## Layer names that can be tuned live (voice layers, then persistent ones).
+func get_tunable_layers() -> PackedStringArray:
+	return _all_layer_names()
+
+
+## The object whose exported values the tuning panel shows: the template for a voice layer,
+## the live node for a persistent one.
+func get_tunable(layer_name: String) -> Object:
+	if _voice_layer_names.has(layer_name):
+		return _template.get_node(layer_name)
+	for layer in _persistent_layers():
+		if layer.name == layer_name:
+			return layer
+	return null
+
+
+## Voice layers: applies from the next strike. Persistent layers: applies immediately.
+func set_tuning(layer_name: String, property: String, value: Variant) -> void:
+	var target := get_tunable(layer_name)
+	if not target:
+		return
+	target.set(property, value)
+	if _voice_layer_names.has(layer_name):
+		if not _tuning.has(layer_name):
+			_tuning[layer_name] = {}
+		_tuning[layer_name][property] = value
 
 
 func _process(_delta: float) -> void:

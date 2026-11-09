@@ -26,6 +26,10 @@ instead of switching off.
   layers report `is_active() == false` (~5 s).
 - **Persistent layers** are `DrumStrike`'s own children (the `DebrisField`). They exist once;
   each new voice's PulseRing is handed to them via `add_push()`.
+- **Live tuning** (Tab in the lab): voices are fresh instances, so tweaks go through
+  `set_tuning(layer, property, value)`, are recorded, and applied to every new voice.
+  `get_tunable(layer)` returns a template voice kept out of the tree (persistent layers are
+  tuned directly). Lasts for the session; use the panel's Print to keep values.
 - `drum_strike.gd` knows nothing about rings — any voice child with `play()`, `reset()` and
   `is_active()` is a layer.
 - Each layer owns its timing. The echo is the same `energy_ring.tscn` with overrides in

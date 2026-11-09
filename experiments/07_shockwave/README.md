@@ -40,6 +40,9 @@ layer for A/B. Debris moved from key 6 to **7**.
 
 - **G** — test grid. The lab's floor is one flat colour and the sky is near-black, so there is
   nothing for the wave to bend. The grid gives it straight lines; turn it on to judge the effect.
+- **Tab** — tuning panel, opens on the Shockwave layer: every parameter below as a slider.
+  Releasing a slider strikes. **Print** outputs the changed values (paste them under the
+  `Shockwave` node in `05_drum_strike/drum_voice.tscn` to keep them); **Reset** restores them.
 - **D** — debug: tints the bend (orange = pushed outward, blue = pulled back) and draws the
   sphere. **T** slow motion helps too: the whole wave is under half a second.
 

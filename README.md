@@ -23,6 +23,7 @@ The lab plays the current effect once on start.
 | R | Reset (clear all strikes, restore debris, normal speed, home camera) |
 | D | Debug overlay: 1 m grid, origin axes, effect guides, timing readout |
 | G | Test grid: gridded floor and backdrop, for seeing distortion effects (plain colours hide a bend) |
+| Tab | Tuning panel: sliders for a layer's settings (drum strike). Releasing a slider strikes; **Print** writes the changed values to the output, ready to paste into the scene; **Reset** restores them |
 | T | Toggle slow motion (0.2x) |
 | L | Loop: strike every `loop_interval` seconds |
 | 1–9 | Mute/unmute a layer (layered effects) |

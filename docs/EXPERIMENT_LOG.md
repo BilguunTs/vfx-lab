@@ -202,3 +202,12 @@
 - Couldn't be seen in the lab at all (flat floor, black sky). Added **G** test grid to the lab
   (gridded floor + camera-facing backdrop, `lab/test_pattern.gdshader`) and a debug tint on
   the wave (orange push / blue rebound). With the grid the bend is obvious.
+
+## 2026-11-09 — Live tuning panel
+
+- **Tab** in the lab: sliders generated from a layer's exported ranged int/float properties
+  (`lab/tuning_panel.gd`), layer dropdown defaulting to Shockwave. Releasing a slider strikes.
+  Print outputs changed values in .tscn syntax; Reset restores the scene's values.
+- DrumStrike records tweaks (`set_tuning`) and applies them to each new voice, since every
+  strike is a fresh instance and direct edits would be lost.
+- Generic: any effect offering get_tunable_layers / get_tunable / set_tuning gets the panel.

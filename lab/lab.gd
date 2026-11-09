@@ -8,9 +8,10 @@ extends Node3D
 const SLOW_MOTION := 0.2
 const STRENGTH_STEP := 0.25
 const TEST_PATTERN := preload("res://lab/test_pattern.gdshader")
+const TuningPanel := preload("res://lab/tuning_panel.gd")
 const BACKDROP_SIZE := Vector2(16.0, 8.0)
 const BACKDROP_DISTANCE := 5.0
-const CONTROLS := "SPACE strike   R reset   D debug   G test grid   T slow-mo   L loop   -/= strength   V variation   A anticipation   RMB drag orbit   wheel zoom   ESC quit"
+const CONTROLS := "SPACE strike   R reset   D debug   G test grid   TAB tune   T slow-mo   L loop   -/= strength   V variation   A anticipation   RMB drag orbit   wheel zoom   ESC quit"
 
 @export var play_on_start := true
 ## Seconds between strikes while looping.
@@ -30,6 +31,7 @@ var _test_grid := false
 var _floor_material: Material
 var _grid_floor := ShaderMaterial.new()
 var _backdrop: MeshInstance3D
+var _tuning_panel: Control
 
 @onready var _camera := $Camera
 @onready var _info: Label = $HUD/Info
@@ -69,6 +71,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_set_debug(not _debug)
 		KEY_G:
 			_set_test_grid(not _test_grid)
+		KEY_TAB:
+			_toggle_tuning()
 		KEY_T:
 			Engine.time_scale = 1.0 if Engine.time_scale < 1.0 else SLOW_MOTION
 		KEY_L:
@@ -127,6 +131,22 @@ func _reset() -> void:
 	if striker:
 		striker.reset()
 	_camera.reset_view()
+
+
+## Tuning panel (effects with get_tunable_layers()): sliders for a layer's exported values.
+## Built on first use; releasing a slider strikes so the change is seen at once.
+func _toggle_tuning() -> void:
+	if not _effect.has_method("get_tunable_layers"):
+		return
+	if not _tuning_panel:
+		_tuning_panel = TuningPanel.new()
+		_tuning_panel.effect = _effect
+		_tuning_panel.committed.connect(_strike)
+		_tuning_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		_tuning_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 16)
+		$HUD.add_child(_tuning_panel)
+		return
+	_tuning_panel.visible = not _tuning_panel.visible
 
 
 ## Test grid: swaps the floor for a line grid and puts a gridded wall behind the scene, so
