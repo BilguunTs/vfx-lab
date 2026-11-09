@@ -237,3 +237,25 @@
   tying the width to the same mask makes each fragment swell and taper.
 - **Lesson — validate behaviour numerically.** A position/fear log over 20 s caught the wrong
   return immediately; stills would have shown nothing.
+
+## 2026-11-09 — Three spirits
+
+- Three wisps (Bold, Timid, Loner) under a `Spirits` group layer (`wisp_group.gd`), one mute
+  key; the tuning panel lists `Spirits/<name>` to tune each.
+- Log showed all wisps first drifting to the focus: simplex noise is 0 at the origin, so each
+  started with the same wander target. Offset the noise per seed. Timid needed a
+  `preferred_distance` to read as shy before any strike (curiosity alone wasn't enough).
+  The loner, 6 m away, barely reacted; a longer `startle_reach` gives it a late twitch.
+- Observation: after a strike the spirit motes and the wisps are both pale dots.
+
+## 2026-11-09 — Ghost figures among the spirits
+
+- `ghost_spirit.gd` extends the wisp: same motion and fear, but the look is a small hooded
+  figure with Ghost Wrap. Fear → ghost value (rest 0.65, startle → 1 fast, re-form slowly).
+  Timid and Loner are now ghost figures; Bold stays a wisp of light.
+- **Bug found in Ghost Wrap:** it assumed every body starts solid (`_rest = 0`). A body that
+  starts as smoke and is lowered was treated as "leaving 0" and ghosted from the reveal point
+  (head dissolved, legs solid: upside down). `_ready` now takes the rest state from the initial
+  intensity. Caught by the debug text ("ghosting from RevealHead") on a close-up render.
+- Planned "dissolve from the drum side" dropped: re-latching the origin mid-value makes the
+  edge jump. Reveal point at the head instead: dissolve feet first, re-form head first.

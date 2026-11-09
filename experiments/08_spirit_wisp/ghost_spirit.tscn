@@ -1,0 +1,84 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://experiments/08_spirit_wisp/ghost_spirit.gd" id="1_spirit"]
+[ext_resource type="Script" path="res://experiments/06_ghost_wrap/ghost_wrap.gd" id="2_ghost"]
+[ext_resource type="Resource" path="res://experiments/06_ghost_wrap/elements/smoke.tres" id="3_smoke"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_robe"]
+albedo_color = Color(0.2, 0.19, 0.19, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Mat_face"]
+albedo_color = Color(0.06, 0.06, 0.06, 1)
+roughness = 1.0
+
+[sub_resource type="CylinderMesh" id="Mesh_robe"]
+material = SubResource("Mat_robe")
+top_radius = 0.17
+bottom_radius = 0.34
+height = 1.1
+radial_segments = 9
+rings = 2
+
+[sub_resource type="CylinderMesh" id="Mesh_arm"]
+material = SubResource("Mat_robe")
+top_radius = 0.06
+bottom_radius = 0.045
+height = 0.6
+radial_segments = 6
+rings = 1
+
+[sub_resource type="SphereMesh" id="Mesh_head"]
+material = SubResource("Mat_face")
+radius = 0.12
+height = 0.26
+radial_segments = 8
+rings = 5
+
+[sub_resource type="CylinderMesh" id="Mesh_hood"]
+material = SubResource("Mat_robe")
+top_radius = 0.02
+bottom_radius = 0.18
+height = 0.42
+radial_segments = 8
+rings = 1
+
+[node name="GhostSpirit" type="Node3D" node_paths=PackedStringArray("body", "ghost")]
+script = ExtResource("1_spirit")
+body = NodePath("Body")
+ghost = NodePath("Body/GhostWrap")
+min_height = 0.3
+max_height = 0.9
+
+[node name="Body" type="Node3D" parent="."]
+transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0)
+
+[node name="Robe" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+mesh = SubResource("Mesh_robe")
+
+[node name="ArmL" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(0.97, 0.24, 0, -0.24, 0.97, 0, 0, 0, 1, -0.24, 0.92, 0.04)
+mesh = SubResource("Mesh_arm")
+
+[node name="ArmR" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(0.97, -0.24, 0, 0.24, 0.97, 0, 0, 0, 1, 0.24, 0.92, 0.04)
+mesh = SubResource("Mesh_arm")
+
+[node name="Head" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0.03)
+mesh = SubResource("Mesh_head")
+
+[node name="Hood" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.47, -0.02)
+mesh = SubResource("Mesh_hood")
+
+[node name="RevealHead" type="Marker3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+
+[node name="GhostWrap" type="Node3D" parent="Body" node_paths=PackedStringArray("targets", "reveal_point")]
+script = ExtResource("2_ghost")
+targets = [NodePath("../Robe"), NodePath("../ArmL"), NodePath("../ArmR"), NodePath("../Head"), NodePath("../Hood")]
+intensity = 1.0
+element = ExtResource("3_smoke")
+reveal_point = NodePath("../RevealHead")

@@ -105,6 +105,10 @@ var _debug_view: MeshInstance3D
 
 
 func _ready() -> void:
+	# Start in the rest state the initial value describes: a body that starts as smoke
+	# (intensity 1) and is lowered must *reveal*, not ghost.
+	_rest = 1 if intensity >= 0.9995 else 0
+	_ghost_inside = _rest == 0
 	_debug_view = DebugDraw.make_view(_debug_mesh)
 	_debug_view.visible = false
 	add_child(_debug_view)

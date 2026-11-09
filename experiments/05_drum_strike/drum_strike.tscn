@@ -1,9 +1,11 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://experiments/05_drum_strike/drum_strike.gd" id="1_strike"]
 [ext_resource type="PackedScene" path="res://experiments/05_drum_strike/drum_voice.tscn" id="2_voice"]
 [ext_resource type="Script" path="res://experiments/05_drum_strike/debris_field.gd" id="6_debris"]
 [ext_resource type="PackedScene" path="res://experiments/08_spirit_wisp/spirit_wisp.tscn" id="7_wisp"]
+[ext_resource type="Script" path="res://experiments/08_spirit_wisp/wisp_group.gd" id="8_group"]
+[ext_resource type="PackedScene" path="res://experiments/08_spirit_wisp/ghost_spirit.tscn" id="9_ghost"]
 
 [node name="DrumStrike" type="Node3D"]
 script = ExtResource("1_strike")
@@ -12,4 +14,44 @@ voice_scene = ExtResource("2_voice")
 [node name="DebrisField" type="Node3D" parent="."]
 script = ExtResource("6_debris")
 
-[node name="SpiritWisp" parent="." instance=ExtResource("7_wisp")]
+[node name="Spirits" type="Node3D" parent="."]
+script = ExtResource("8_group")
+
+[node name="Bold" parent="Spirits" instance=ExtResource("7_wisp")]
+cruise_speed = 1.0
+hesitation = 0.4
+curiosity = 0.85
+personal_space = 0.42
+startle_speed = 5.0
+hide_distance = 3.0
+recover_time = 1.8
+wariness_length = 1.5
+color = Color(0.74, 0.92, 0.76, 1)
+brightness = 1.8
+noise_seed = 5
+
+[node name="Timid" parent="Spirits" instance=ExtResource("9_ghost")]
+wander_radius = 3.0
+wander_speed = 0.1
+hesitation = 0.85
+curiosity = 0.2
+personal_space = 0.9
+preferred_distance = 2.0
+startle_speed = 8.0
+hide_distance = 7.0
+recover_time = 6.0
+wariness_length = 4.0
+noise_seed = 17
+
+[node name="Loner" parent="Spirits" instance=ExtResource("9_ghost")]
+focus = Vector3(-4.6, 0.45, -3.6)
+wander_radius = 0.9
+wander_speed = 0.06
+cruise_speed = 0.35
+hesitation = 0.7
+curiosity = 0.05
+startle_speed = 2.5
+startle_reach = 10.0
+hide_distance = 1.6
+recover_time = 4.0
+noise_seed = 29

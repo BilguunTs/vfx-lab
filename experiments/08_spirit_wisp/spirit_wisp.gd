@@ -35,6 +35,8 @@ const MAX_TRAIL_POINTS := 96
 @export_range(0.0, 1.0, 0.01) var curiosity := 0.5
 ## Closest it dares to come to the focus.
 @export_range(0.1, 2.0, 0.01, "suffix:m") var personal_space := 0.55
+## Distance it likes to keep from the focus when not being curious. 0 = goes anywhere.
+@export_range(0.0, 8.0, 0.05, "suffix:m") var preferred_distance := 0.0
 
 @export_group("Startle")
 ## Speed of the flinch away from a pulse.
@@ -221,7 +223,9 @@ func _update_pending(delta: float) -> void:
 
 func _update_motion(delta: float) -> void:
 	var home := global_position + focus
-	var t := _time * wander_speed
+	# Each seed starts at a different place in the noise (simplex is 0 at the origin, so every
+	# wisp would otherwise begin by drifting to the focus).
+	var t := _time * wander_speed + 37.3 + float(noise_seed + _seed_offset) * 11.1
 
 	# Wander: a target drifting through the space around the focus.
 	var n := Vector3(_noise.get_noise_2d(t, 0.0), _noise.get_noise_2d(t, 100.0), _noise.get_noise_2d(t, 200.0))
@@ -238,7 +242,7 @@ func _update_motion(delta: float) -> void:
 	# While wary it keeps to the outer part of its range.
 	var from_home := target - home
 	from_home.y = 0.0
-	var keep_out := wander_radius * 0.8 * _wary
+	var keep_out := maxf(wander_radius * 0.8 * _wary, preferred_distance * (1.0 - _curious))
 	if from_home.length() < keep_out:
 		target += (from_home.normalized() if from_home.length() > 0.01 else side) * (keep_out - from_home.length())
 

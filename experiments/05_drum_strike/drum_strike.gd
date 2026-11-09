@@ -124,9 +124,15 @@ func toggle_layer(index: int) -> void:
 		persistent[index].reset()
 
 
-## Layer names that can be tuned live (voice layers, then persistent ones).
+## Layer names that can be tuned live (voice layers, then persistent ones). A persistent layer
+## that groups others (e.g. Spirits) also lists its members as "Group/Member".
 func get_tunable_layers() -> PackedStringArray:
-	return _all_layer_names()
+	var names := _all_layer_names()
+	for layer in _persistent_layers():
+		for child in layer.get_children():
+			if child.has_method("add_push"):
+				names.append("%s/%s" % [layer.name, child.name])
+	return names
 
 
 ## The object whose exported values the tuning panel shows: the template for a voice layer,
@@ -134,9 +140,9 @@ func get_tunable_layers() -> PackedStringArray:
 func get_tunable(layer_name: String) -> Object:
 	if _voice_layer_names.has(layer_name):
 		return _template.get_node(layer_name)
-	for layer in _persistent_layers():
-		if layer.name == layer_name:
-			return layer
+	var node := get_node_or_null(NodePath(layer_name))
+	if node and node is Node3D and (node.has_method("add_push") or _persistent_layers().has(node)):
+		return node
 	return null
 
 

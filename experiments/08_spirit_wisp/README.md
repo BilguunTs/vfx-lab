@@ -28,11 +28,46 @@ startle, followed by a slow, wary return.
   (an ImmediateMesh rebuilt every frame). `wisp_trail.gdshader` breaks it into fragments by
   *distance* along the trail, so a fast flight sheds separate wisps instead of one streak.
 
+## Three temperaments
+
+The drum strike holds three wisps under a `Spirits` group (`wisp_group.gd` forwards pulses,
+strength, debug and reset, so they act as one layer). Same component, different settings in
+`05_drum_strike/drum_strike.tscn`:
+
+| Spirit | Character | Key settings | Behaviour after a strike |
+| --- | --- | --- | --- |
+| Bold (wisp of light) | Curious, stays close | curiosity 0.85, recover 1.8 s, hides only 3 m | Flinches to ~2.5 m, back peeking within ~5 s |
+| Timid (ghost figure) | Keeps its distance | preferred_distance 2 m, recover 6 s, wariness ×4, hides 7 m, dimmer, smaller | Flees to ~5 m, still edging back 20 s later |
+| Loner (ghost figure) | Haunts a spot among the stones | focus (-4.6, 0.45, -3.6), slow, low, strong ground light, long trail | Last to react (when the wave reaches it, ~2 s), a small twitch |
+
+### Ghost figures
+
+`ghost_spirit.gd` / `.tscn` is a wisp whose body is a small hooded figure dissolved with
+Ghost Wrap (experiment 06) instead of a glow. It inherits all the wisp's motion, fear and
+wariness and only replaces the look:
+
+- The figure glides along the wisp's path just above the ground, turning to face the focus.
+- Fear drives the Ghost Wrap value. It rests at `rest_ghost` (0.65: hood and shoulders solid,
+  the rest smoke), dissolves at `dissolve_rate` when startled, and re-forms at `reform_rate`
+  once the fear fades. A badly frightened spirit stays smoke longer.
+- The reveal point is the head, so a strike dissolves it feet first, head last, and it gathers
+  back from the head down. (Starting the dissolve from the drum side was the first idea, but
+  Ghost Wrap only re-picks its start point when leaving fully solid or fully smoke, so moving
+  it from a half-dissolved rest would make the edge jump.)
+- Smoke trails come from Ghost Wrap itself as the figure moves.
+
+Cost: ~360 smoke particles per figure.
+
+A group of spirits with different characters is more unsettling than one: the scene has
+*social* behaviour. `preferred_distance` keeps a wisp out of the near zone unless curiosity
+wins.
+
 ## Run
 
-In the drum lab (main scene) it is the `SpiritWisp` layer: watch it idle, then press Space.
-**8** mutes it. **Tab** → `SpiritWisp` tunes it live (persistent layer: changes apply at once).
-**D** draws its target (yellow), velocity (red when afraid, green when calm) and wander area.
+In the drum lab (main scene) they are the `Spirits` layer: watch them idle, then press Space.
+**8** mutes all three. **Tab** → `Spirits/Bold` (or Timid, Loner) tunes one live (persistent
+layer: changes apply at once). **D** draws each wisp's target (yellow), velocity (red when
+afraid, green when calm) and wander area.
 
 ## Parameters
 
@@ -43,6 +78,7 @@ In the drum lab (main scene) it is the `SpiritWisp` layer: watch it idle, then p
 | `hesitation` | 0.6 | How often it nearly stops |
 | `curiosity` | 0.5 | How often it comes in close to look |
 | `personal_space` | 0.55 m | Closest it comes to the focus |
+| `preferred_distance` | 0 | Distance it keeps when not curious |
 | `startle_speed` | 6 m/s | Flinch speed |
 | `hide_distance` | 4.5 m | Where it hides |
 | `recover_time` | 3.5 s | Fear duration |
@@ -62,4 +98,8 @@ In the drum lab (main scene) it is the `SpiritWisp` layer: watch it idle, then p
 - `trail_breakup` 0 vs 1: comet vs. shedding spirit.
 - `curiosity` 0.1 vs 0.9: aloof vs. pestering.
 - `wariness_length` 1 vs 5: forgets at once vs. holds a grudge.
-- Several wisps with different `noise_seed`s, possibly a "braver" one that recovers faster.
+- A fourth temperament: one *drawn* to the strike (comes closer when the drum sounds).
+- Ghost figures: `rest_ghost` 0.4 vs 0.85 (almost a person vs. almost gone); a fire element on
+  one of them.
+- The drum's spirit motes and the wisps are both pale dots after a strike; decide whether they
+  should look like one family or be clearly different.
