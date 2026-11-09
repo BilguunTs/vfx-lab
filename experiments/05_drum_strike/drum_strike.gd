@@ -28,7 +28,12 @@ func _ready() -> void:
 	var prototype := voice_scene.instantiate()
 	for child in prototype.get_children():
 		_voice_layer_names.append(child.name)
-	prototype.free()
+	# Keep the prototype in the tree for a couple of frames (all layers idle, nothing visible)
+	# so the layers' shaders compile at load time instead of stalling the first strike.
+	add_child(prototype)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	prototype.queue_free()
 
 
 func play() -> void:

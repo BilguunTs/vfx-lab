@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="PackedScene" path="res://experiments/04_energy_ring/energy_ring.tscn" id="2_ring"]
 [ext_resource type="PackedScene" path="res://experiments/05_drum_strike/dust_burst.tscn" id="3_dust"]
 [ext_resource type="Script" path="res://experiments/05_drum_strike/rune_seal.gd" id="4_seal"]
 [ext_resource type="PackedScene" path="res://experiments/05_drum_strike/spirit_motes.tscn" id="5_motes"]
+[ext_resource type="PackedScene" path="res://experiments/07_shockwave/shockwave.tscn" id="6_wave"]
 
 [node name="DrumVoice" type="Node3D"]
 
@@ -29,3 +30,6 @@ script = ExtResource("4_seal")
 ignition_source = NodePath("../PulseRing")
 
 [node name="SpiritMotes" parent="." instance=ExtResource("5_motes")]
+
+[node name="Shockwave" parent="." instance=ExtResource("6_wave")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)

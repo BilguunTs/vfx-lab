@@ -3,7 +3,7 @@
 **What it demonstrates:** the drum strike built as independent layers under one trigger.
 Currently: `PulseRing` (the main ring from experiment 04), `EchoRing` (a fainter, delayed copy)
 `DustBurst` (Phase B: ground dust kicked out by the strike), `RuneSeal` (Phase C: a circle
-of glyphs that ignites, cools and burns away), `SpiritMotes` (Phase E: the residue) and
+of glyphs that ignites, cools and burns away), `SpiritMotes` (Phase E: the residue), `Shockwave` (air distortion from experiment 07) and
 `DebrisField` (Phase D: stone shards the pulse kicks as it passes).
 
 **Full timeline:** impact 0–0.3 s (rings, dust, seal ignition) → decay 0.3–2.4 s (echo, seal
@@ -21,7 +21,7 @@ instead of switching off.
 ## How it works
 
 - **Voices.** `drum_voice.tscn` holds the per-strike layers (PulseRing, EchoRing, DustBurst,
-  RuneSeal, SpiritMotes). Every `DrumStrike.play()` instantiates a fresh voice, applies
+  RuneSeal, SpiritMotes, Shockwave). Every `DrumStrike.play()` instantiates a fresh voice, applies
   strength / variation / mutes / debug to it, and plays it. A voice frees itself once all its
   layers report `is_active() == false` (~5 s).
 - **Persistent layers** are `DrumStrike`'s own children (the `DebrisField`). They exist once;
@@ -185,6 +185,7 @@ twice as big in every way:
 | Dust | — | speed × s^0.7; fewer particles below 1 | — |
 | Motes | — | fewer motes below 1; speed unchanged (residue is always calm) | — |
 | Debris | — | launch speed × s^0.7 (reach follows the ring's radius) | — |
+| Shockwave | bend × s | radius × s^0.6 | × s^0.3 |
 
 So a big strike is mostly *bigger and brighter*, not slower. At 0.3 the ring falls below the glow
 threshold entirely — a whisper, not a small explosion. At 2.0 the dust is flung several metres.

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://experiments/07_shockwave/shockwave.gd" id="1_wave"]
+
+[node name="Shockwave" type="Node3D"]
+script = ExtResource("1_wave")

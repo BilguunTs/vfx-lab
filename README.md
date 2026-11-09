@@ -22,6 +22,7 @@ The lab plays the current effect once on start.
 | Space | Strike (the beater swings; the effect fires on impact). Strikes overlap — press again before one ends and both play out |
 | R | Reset (clear all strikes, restore debris, normal speed, home camera) |
 | D | Debug overlay: 1 m grid, origin axes, effect guides, timing readout |
+| G | Test grid: gridded floor and backdrop, for seeing distortion effects (plain colours hide a bend) |
 | T | Toggle slow motion (0.2x) |
 | L | Loop: strike every `loop_interval` seconds |
 | 1–9 | Mute/unmute a layer (layered effects) |
@@ -59,4 +60,5 @@ To try another effect, replace the child of `Lab/EffectSlot`, or make an inherit
 
 - [04 Energy Ring](experiments/04_energy_ring/README.md) — drum strike Phase A: an expanding ground ring.
 - [05 Drum Strike](experiments/05_drum_strike/README.md) — layered strike: pulse ring + echo ring + dust burst + rune seal + spirit motes + debris. **Loaded in the lab.**
+- [07 Shockwave](experiments/07_shockwave/README.md) — air distortion ripple that bends the background outward; a layer of the drum strike (key 6 mutes it).
 - [06 Ghost Wrap](experiments/06_ghost_wrap/README.md) — reusable component: one value (0 model → 1 only smoke) dissolves any meshes into smoke, spreading from a placeable reveal point. Run `ghost_wrap_lab.tscn`.

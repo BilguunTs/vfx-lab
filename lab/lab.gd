@@ -7,7 +7,10 @@ extends Node3D
 
 const SLOW_MOTION := 0.2
 const STRENGTH_STEP := 0.25
-const CONTROLS := "SPACE strike   R reset   D debug   T slow-mo   L loop   -/= strength   V variation   A anticipation   RMB drag orbit   wheel zoom   ESC quit"
+const TEST_PATTERN := preload("res://lab/test_pattern.gdshader")
+const BACKDROP_SIZE := Vector2(16.0, 8.0)
+const BACKDROP_DISTANCE := 5.0
+const CONTROLS := "SPACE strike   R reset   D debug   G test grid   T slow-mo   L loop   -/= strength   V variation   A anticipation   RMB drag orbit   wheel zoom   ESC quit"
 
 @export var play_on_start := true
 ## Seconds between strikes while looping.
@@ -23,6 +26,10 @@ var _looping := false
 var _loop_timer := 0.0
 var _debug_view: MeshInstance3D
 var _effect: Node
+var _test_grid := false
+var _floor_material: Material
+var _grid_floor := ShaderMaterial.new()
+var _backdrop: MeshInstance3D
 
 @onready var _camera := $Camera
 @onready var _info: Label = $HUD/Info
@@ -39,6 +46,7 @@ func _ready() -> void:
 	if striker and not striker.visible:
 		striker = null
 
+	_build_test_grid()
 	_debug_view = _build_debug_guides()
 	add_child(_debug_view)
 	_set_debug(false)
@@ -59,6 +67,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_reset()
 		KEY_D:
 			_set_debug(not _debug)
+		KEY_G:
+			_set_test_grid(not _test_grid)
 		KEY_T:
 			Engine.time_scale = 1.0 if Engine.time_scale < 1.0 else SLOW_MOTION
 		KEY_L:
@@ -85,6 +95,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	if _test_grid:
+		_place_backdrop()
 	if _looping:
 		_loop_timer += delta
 		if _loop_timer >= loop_interval:
@@ -115,6 +127,42 @@ func _reset() -> void:
 	if striker:
 		striker.reset()
 	_camera.reset_view()
+
+
+## Test grid: swaps the floor for a line grid and puts a gridded wall behind the scene, so
+## distortion effects (the shockwave) have straight lines to bend. Plain flat colours hide them.
+func _set_test_grid(enabled: bool) -> void:
+	_test_grid = enabled
+	$Floor.set_surface_override_material(0, _grid_floor if enabled else _floor_material)
+	_backdrop.visible = enabled
+	if enabled:
+		_place_backdrop()
+
+
+func _build_test_grid() -> void:
+	_floor_material = $Floor.get_surface_override_material(0)
+	_grid_floor.shader = TEST_PATTERN
+	var wall_material := ShaderMaterial.new()
+	wall_material.shader = TEST_PATTERN
+	wall_material.set_shader_parameter("quad_size", BACKDROP_SIZE)
+	var quad := QuadMesh.new()
+	quad.size = BACKDROP_SIZE
+	quad.material = wall_material
+	_backdrop = MeshInstance3D.new()
+	_backdrop.mesh = quad
+	_backdrop.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_backdrop.visible = false
+	add_child(_backdrop)
+
+
+## Keeps the wall upright on the far side of the scene from the camera, facing it.
+func _place_backdrop() -> void:
+	var away: Vector3 = -_camera.global_position
+	away.y = 0.0
+	away = away.normalized() if away.length() > 0.01 else Vector3.FORWARD
+	_backdrop.global_position = away * BACKDROP_DISTANCE + Vector3.UP * (BACKDROP_SIZE.y * 0.5)
+	_backdrop.look_at(_backdrop.global_position + away, Vector3.UP)
+	_backdrop.rotate_object_local(Vector3.UP, PI) # QuadMesh faces +Z; look_at points -Z
 
 
 func _set_debug(enabled: bool) -> void:

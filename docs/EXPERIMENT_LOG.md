@@ -187,3 +187,18 @@
 - **Lesson — tie accents to change, not state.** Sparks at a constant rate read as a sparkler;
   driven by the front's speed they read as the act of burning. Reveal (body re-forming out of
   fire) showers sparks around the robe and is the most striking moment.
+
+## 2026-11-09 — Shockwave (air distortion)
+
+- `experiments/07_shockwave`: expanding sphere whose shader re-samples the screen texture,
+  pushing pixels away from the centre in a fresnel-shaped band with an inward rebound lobe.
+  Standalone `trigger(strength)`; added as the `Shockwave` layer of the drum voice.
+- Default bend raised 0.025 → 0.04: against the dark lab it was invisible except in diffs.
+- Shader compile stalled the first strike; the component (and the drum strike's voice
+  prototype) now render once invisibly at load. First strike's worst frame: 11 ms.
+- **Lesson — distortion needs detail behind it.** On an empty background it does nothing;
+  it reads through the floor stones and the drum. A richer floor would sell it more than a
+  stronger amplitude.
+- Couldn't be seen in the lab at all (flat floor, black sky). Added **G** test grid to the lab
+  (gridded floor + camera-facing backdrop, `lab/test_pattern.gdshader`) and a debug tint on
+  the wave (orange push / blue rebound). With the grid the bend is obvious.
