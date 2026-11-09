@@ -8,6 +8,9 @@ A reusable component that dissolves any set of meshes into smoke, driven by one 
 | 0.5 | Part solid, part smoke |
 | 1 | No body left, only a floating smoke shape of the figure (or, with `blob_enabled`, a churning smoke orb) |
 
+What the body dissolves *into* is a swappable **element** (`elements/*.tres`): smoke, fire,
+water or wind, each moving according to its own nature (see [Elements](#elements)).
+
 Transitions spread from a **reveal point** you place anywhere on or around the body. Leaving 0
 (ghosting), the area around the point dissolves first. Leaving 1 (revealing), the area around
 the point turns solid first. Put it at the feet and the legs go first and come back first; put
@@ -27,8 +30,9 @@ with the drum hidden and the camera closer.
 | Space | Toggle the target value 0 ↔ 1 (1.6 s for a full ramp) |
 | Q / E | Step the target value down / up by 0.25 |
 | P | Next reveal point: Feet → Head → RightHand (used from the next transition) |
-| B | Toggle the smoke blob (orb at full ghost) |
-| 1 / 2 | Mute dissolve / smoke |
+| B | Toggle the blob (the medium gathers into an orb at full ghost) |
+| N | Next element: Smoke → Fire → Water → Wind |
+| 1 / 2 | Mute dissolve / particles |
 | D | Debug: reveal origin (white cross), dissolve front (yellow circles), current smoke emission points (cyan), blob sphere (violet) |
 | T, L, R | Slow motion, loop, reset |
 
@@ -40,7 +44,8 @@ with the drum hidden and the camera closer.
 2. Put the body's `MeshInstance3D`s in `targets`.
 3. Optional: add a `Node3D`/`Marker3D` where the transition should start and assign it to
    `reveal_point`. Empty = the bottom centre of the body.
-4. Animate `intensity` from anything: a script, an `AnimationPlayer`, a `Tween`.
+4. Optional: assign an element (`elements/fire.tres`...) to `element`. Empty = smoke.
+5. Animate `intensity` from anything: a script, an `AnimationPlayer`, a `Tween`.
 
 **Direction rules.** The point and direction are read at the moment `intensity` leaves 0 or 1.
 Reversing mid-transition runs the same front back (no pop). Moving the marker mid-transition
@@ -64,7 +69,7 @@ figure (ramp, hover, optional wander, reveal-point keys).
   the moving edge emits extra (`edge_smoke`), solid areas emit nothing. So at 1 the whole body
   emits and the smoke takes its shape. Emission rate = `intensity`. Particles are in world
   space, so a moving body leaves a trail.
-- **Puffs (`ghost_smoke.gdshader`):** procedural, no textures. A puff is *not* a picture of
+- **Puffs (`ghost_medium.gdshaderinc`):** procedural, no textures. A puff is *not* a picture of
   smoke: it's a very soft window onto one shared density field (value-noise fbm with a slight
   swirl distortion) that lives in **world space** and scrolls upward. Overlapping puffs reveal
   the same structure, so hundreds of faint puffs merge into one volume. Each quad is stretched
@@ -76,12 +81,12 @@ figure (ramp, hover, optional wander, reveal-point keys).
 
 | Real smoke | Implementation |
 | --- | --- |
-| One continuous, connected volume, never separate blobs | World-space shared noise field; many faint puffs (`smoke_opacity` 0.3, 360 puffs) |
+| One continuous, connected volume, never separate blobs | World-space shared noise field; many faint puffs (`opacity` 0.3, 360 puffs) |
 | Smooth near the source, turbulent higher up (laminar → turbulent, e.g. cigarette smoke) | `turbulence_influence_over_life`: 10 % at birth → 100 % at half life |
 | A plume widens and thins as it rises (it pulls in surrounding air) | Scale curve 25 % → 100 % (≈4× growth); density threshold rises with age |
-| Stretches along its flow | Particle Y aligned to velocity; quad `smoke_stretch` × taller |
-| Dense parts self-shadow, thin parts glow with scattered light | Shaded from the field's density gradient: `smoke_lit_color` / `smoke_shadow_color` |
-| Rises because it's warm (buoyancy) | `smoke_rise` acceleration + upward-scrolling field |
+| Stretches along its flow | Particle Y aligned to velocity; quad `stretch` × taller |
+| Dense parts self-shadow, thin parts glow with scattered light | Shaded from the field's density gradient: `lit_color` / `shadow_color` |
+| Rises because it's warm (buoyancy) | `gravity` (up) + upward-drifting field (`field_flow`) |
 
 - **Blob (optional, `blob_enabled`):** from `blob_start` (0.7) to 1, each emission point slides
   from the body surface to its own point inside a sphere (`blob_center`, default chest height).
@@ -92,31 +97,53 @@ figure (ramp, hover, optional wander, reveal-point keys).
 **Principle: replace, don't remove.** Smoke comes exactly from where the body disappears (most
 of it at the moving edge), so the eye reads the body as *becoming* smoke rather than being cut away.
 
+## Elements
+
+An element (`ghost_element.gd`, a Resource) holds everything about the *medium*: colour over
+life, puff shape, density field, motion, how the body edge looks, and how it behaves as a blob.
+The component holds everything about the *body*: dissolve, reveal point, blob placement.
+New element = duplicate a `.tres` and edit it in the Inspector. Swapping takes effect
+immediately (the particle system is rebuilt for amount, lifetime and blend mode).
+
+| Element | Motion | Look | Body edge | Blob |
+| --- | --- | --- | --- | --- |
+| Smoke | Rises slowly, laminar → turbulent, widens 4× | Soft, self-shadowed, pale jade | Faint jade glow | Churning orb |
+| Fire | Fast upward tongues, short life (0.9 s), strong buoyancy | **Additive**: white-yellow → orange → deep red → gone | Body chars dark ahead of a glowing orange line | Fireball, slight swirl |
+| Water | Falls under gravity (−9 m/s²), droplets stretched along the fall, **collide with the floor** | Dark glossy blue, highlights only where thin | Body darkens as if wet | Water sphere held in the air |
+| Wind | Blown one way (4 m/s² sideways), long thin streaks | Barely visible dusty strokes | — | Whirlwind (vector-field swirl) |
+
+Shaders: `ghost_medium.gdshaderinc` is the shared puff logic; `ghost_medium_mix.gdshader`
+(alpha blend: smoke, water, wind) and `ghost_medium_add.gdshader` (additive: fire) only set the
+blend mode. Fire must be additive: light never darkens what's behind it.
+
+**Principle: the medium's physics *is* its identity.** The same particle system reads as four
+different things mainly through acceleration direction, lifetime, stretch and blend mode, much
+more than through colour. Try fire with water's gravity: it stops reading as fire immediately.
+
 ## Parameters (on `Body/GhostWrap`)
 
 | Parameter | Default | What it does |
 | --- | --- | --- |
 | `intensity` | 0 | Master control, 0..1 |
+| `element` | empty (smoke) | What the body dissolves into (`elements/*.tres`) |
 | `reveal_point` | empty | Node where transitions start (empty = bottom centre of the body) |
-| `edge_band` | 0.2 | Width of the soft solid↔smoke zone (fraction of the body's extent from the point) |
-| `edge_noise`, `edge_noise_scale`, `edge_flow` | 0.1, 5, 0.25 | How ragged, how fine, how fast the edge moves |
-| `body_opacity` | 1.0 | Opacity of the solid part during a transition (lower = see-through spirit) |
-| `desaturate`, `rim_strength`, `edge_glow`, `glow_color` | 0.5, 0.35, 0.2, pale jade | Colour treatment |
-| `smoke_amount`, `smoke_lifetime` | 360, 3 s | Density and trail length (*rebuild*) |
-| `smoke_opacity` | 0.3 | Per-puff opacity. Low: smoke is many faint layers |
-| `smoke_size`, `smoke_stretch` | 0.9 m, 1.7 | Final puff width (born at ¼), height/width along motion |
-| `smoke_lit_color`, `smoke_shadow_color` | pale jade, dark slate | Thin/lit vs. dense/shadowed smoke |
-| `smoke_rise`, `smoke_push`, `smoke_turbulence` | 0.45, 0.15, 0.35 | Buoyancy, outward push, curl (ramps up with age) |
-| Shader: `field_scale`, `field_rise`, `warp`, `thin_start/end`, `shade_contrast` | in `ghost_smoke.gdshader` | Size of smoke structure, scroll, curliness, dispersal, self-shadow |
-| `edge_smoke` | 2 | Extra smoke from the moving edge vs. fully dissolved areas. 0 = even |
-| `blob_enabled` | off | Gather the smoke into an orb near full intensity |
-| `blob_center`, `blob_radius` | chest, 0.45 m | Where and how big (optional node for placement) |
-| `blob_start` | 0.7 | Intensity where the smoke starts moving onto the sphere |
-| `blob_pull`, `blob_damping` | 3, 2.5 | Attractor strength and drag once formed: how tight and calm the orb is |
-| `blob_rise`, `blob_puff_scale` | 0.05, 1.3 | Buoyancy and puff size inside the orb |
+| `edge_band` | 0.2 | Width of the soft solid↔medium zone (fraction of the body's extent from the point) |
+| `edge_noise`, `edge_noise_scale` | 0.1, 5 | How ragged and how fine the edge is |
+| `body_opacity`, `desaturate` | 1.0, 0.5 | Solid part during a transition |
+| `edge_smoke` | 2 | Extra particles from the moving edge vs. fully dissolved areas. 0 = even |
+| `floor_height` | 0 | World height of the floor, for colliding elements |
+| `blob_enabled`, `blob_center`, `blob_radius`, `blob_start` | off, chest, 0.45 m, 0.7 | Blob placement and timing |
 
-*Rebuild* parameters only apply when `rebuild()` runs (on ready). Everything else is live:
-edit it in the Remote inspector while the game runs.
+Element parameters (on the `.tres`): `amount`, `lifetime`, `color_over_life`, `lit_color` /
+`shadow_color`, `opacity`, `additive`, `size`, `birth_scale`, `stretch`; density field
+(`field_scale`, `field_flow`, `warp`, `thin_start/end`, `softness`, `shade_contrast`); motion
+(`gravity`, `push`, `spread`, `damping`, `turbulence`, `collide_with_floor`, `bounce`); body
+edge (`glow_color`, `edge_glow`, `rim_strength`, `edge_flow`, `scorch_color`, `scorch_width`);
+blob (`blob_gravity`, `blob_pull`, `blob_swirl`, `blob_damping`, `blob_puff_scale`,
+`blob_stretch`). Each is documented in `ghost_element.gd`.
+
+Everything is live: edit it in the Remote inspector while the game runs (element `amount`,
+`lifetime`, `additive` and `collide_with_floor` apply when the element is swapped).
 
 ## What to observe
 
@@ -125,6 +152,8 @@ edit it in the Remote inspector while the game runs.
 - Press Space mid-ramp: the transition reverses smoothly from wherever it is.
 - Same reveal point, both directions: from Feet, ghosting eats the legs first; reveal from Feet
   and the legs come back first. Compare with Head (**P**).
+- **N** through the elements at the same value (Q/E to 0.5): same body, same front, four
+  different materials. Which differences come from motion, which from colour?
 - **B** on, Space: the figure dissolves into smoke, which then gathers into an orb. Space
   again: the orb unravels over the body and the body re-forms.
 - Q/E to 0.5 and hold: the half state is stable, and smoke keeps pouring from the edge.
@@ -142,7 +171,7 @@ edit it in the Remote inspector while the game runs.
   would need precomputed geodesic distances (later, if it matters).
 - Transparent body parts can sort incorrectly against each other where they overlap
   (`depth_prepass_alpha` keeps the opaque upper body correct).
-- At ~360 alpha-blended puffs this is cheap, but overdraw grows with `smoke_size` × `smoke_amount`.
+- At ~360 alpha-blended puffs this is cheap, but overdraw grows with element `size` × `amount` (water: 700 small streaks; fire is additive, so overdraw adds brightness too).
 
 ## Try next
 
@@ -150,12 +179,15 @@ edit it in the Remote inspector while the game runs.
 - Blob: `blob_pull` 1 (loose, breathing) vs 8 (tight core); `blob_start` 0.4 vs 0.9 (how much
   of the transition is spent as a body-shaped cloud).
 - `edge_band` 0.05 (sharp, burning-paper front) vs 0.4 (slow misty blend).
-- `smoke_rise` −0.1 (sinking, cold) vs 0.45 vs 1.0 (rising, hot). Which is more *ghost*?
+- Smoke `gravity.y` −0.1 (sinking, cold) vs 0.45 vs 1.0 (rising, hot). Which is more *ghost*?
 - `body_opacity` 0.6: a fully translucent spirit vs. a solid body with a missing lower half.
 - `wander` on (in `ghost_wrap_demo.tscn` on the root): the smoke trails behind a moving body.
-- Dark smoke (`smoke_lit_color` / `smoke_shadow_color` near black, higher `smoke_opacity`) for a malevolent spirit. Does the dark
+- A new element: duplicate `smoke.tres`. Ideas: ash (grey, falls slowly, drifts), spirit
+  (additive jade, rises, swirls), sand (falls, collides, no stretch).
+- Embers for fire: a second small particle layer (sparks) — the next step for fire.
+- Dark smoke (`lit_color` / `shadow_color` near black, higher `opacity`) for a malevolent spirit. Does the dark
   background still read it?
 - `field_scale` 1.2 (big lazy billows) vs 4 (fine, busy smoke): which matches the figure's scale?
-- `smoke_stretch` 1 vs 3: billowing vs. streaming.
+- Smoke `stretch` 1 vs 3: billowing vs. streaming.
 - Tendrils: add a second layer of particle **trails** (`TubeTrailMesh`) for a few long wisps
   curling off the shoulders. Different look (strands rather than volume); try it as a layer.

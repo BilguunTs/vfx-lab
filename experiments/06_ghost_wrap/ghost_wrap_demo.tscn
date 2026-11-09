@@ -1,7 +1,11 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://experiments/06_ghost_wrap/ghost_wrap_demo.gd" id="1_demo"]
 [ext_resource type="Script" path="res://experiments/06_ghost_wrap/ghost_wrap.gd" id="2_ghost"]
+[ext_resource type="Resource" path="res://experiments/06_ghost_wrap/elements/smoke.tres" id="3_smoke"]
+[ext_resource type="Resource" path="res://experiments/06_ghost_wrap/elements/fire.tres" id="4_fire"]
+[ext_resource type="Resource" path="res://experiments/06_ghost_wrap/elements/water.tres" id="5_water"]
+[ext_resource type="Resource" path="res://experiments/06_ghost_wrap/elements/wind.tres" id="6_wind"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_robe"]
 albedo_color = Color(0.26, 0.23, 0.21, 1)
@@ -56,6 +60,7 @@ rings = 1
 
 [node name="GhostWrapDemo" type="Node3D"]
 script = ExtResource("1_demo")
+elements = Array[Resource]([ExtResource("3_smoke"), ExtResource("4_fire"), ExtResource("5_water"), ExtResource("6_wind")])
 
 [node name="Body" type="Node3D" parent="."]
 

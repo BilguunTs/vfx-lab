@@ -1,11 +1,15 @@
 extends Node3D
-## Ghost Wrap — dissolves any set of meshes into smoke. Self-contained: knows nothing about its owner.
+## Ghost Wrap — dissolves any set of meshes into a medium (smoke, fire, water, wind...).
+## Self-contained: knows nothing about its owner.
 ##
 ## Place this node at the body's root (feet at its origin, +Y up) and list the meshes in
 ## `targets`. One value drives everything; whoever owns the node animates it:
-##   intensity 0   = the model as authored (original materials, no smoke)
-##   intensity 0.5 = part solid, part smoke
-##   intensity 1   = no body left, only smoke in its shape
+##   intensity 0   = the model as authored (original materials, no particles)
+##   intensity 0.5 = part solid, part medium
+##   intensity 1   = no body left, only the medium in its shape (or a blob, if enabled)
+##
+## `element` (a GhostElement resource, see elements/) decides what the medium looks like and how
+## it moves. Swap it at any time; empty = the default smoke.
 ##
 ## Transitions spread from `reveal_point` as a ragged sphere, in both directions:
 ##   leaving 0 (ghosting):  the area around the point dissolves first
@@ -13,86 +17,58 @@ extends Node3D
 ## The direction and the point are latched when intensity leaves 0 or 1; reversing
 ## mid-transition runs the same front back, so nothing pops.
 ##
-## Smoke is emitted from the parts that are currently dissolved, extra at the moving edge.
+## Particles are emitted from the parts that are currently dissolved, extra at the moving edge.
 ## Surface samples are taken in rebuild() (called on ready). They don't follow skinned animation.
 
 const BODY_SHADER := preload("res://experiments/06_ghost_wrap/ghost_body.gdshader")
-const SMOKE_SHADER := preload("res://experiments/06_ghost_wrap/ghost_smoke.gdshader")
-const EMISSION_POINTS := 512 # smoke emission points, re-chosen as the front moves
+const MEDIUM_MIX_SHADER := preload("res://experiments/06_ghost_wrap/ghost_medium_mix.gdshader")
+const MEDIUM_ADD_SHADER := preload("res://experiments/06_ghost_wrap/ghost_medium_add.gdshader")
+const EMISSION_POINTS := 512 # emission points, re-chosen as the front moves
 const POOL_POINTS := 2048    # candidate surface samples they are chosen from
+const SWIRL_RES := 16        # resolution of the blob's swirl vector field
 
 ## Meshes to dissolve.
 @export var targets: Array[MeshInstance3D] = []
-## 0 = the model, 1 = only smoke. Animate this from outside.
+## 0 = the model, 1 = only the medium. Animate this from outside.
 @export_range(0.0, 1.0, 0.001) var intensity := 0.0
+## What the body dissolves into. Empty = default smoke.
+@export var element: GhostElement
 ## Where transitions start. Read when intensity leaves 0 or 1.
 ## Empty = the bottom centre of the body (legs go first, like a ghost losing its feet).
 @export var reveal_point: Node3D
 
 @export_group("Dissolve")
 @export var fade_enabled := true
-## Width of the soft zone between solid and smoke, as a fraction of the body's extent
+## Width of the soft zone between solid and medium, as a fraction of the body's extent
 ## measured from the reveal point.
 @export_range(0.01, 1.0, 0.01) var edge_band := 0.2
 ## How far noise pushes the edge in/out (same units). 0 = perfect sphere.
 @export_range(0.0, 0.5, 0.01) var edge_noise := 0.1
 ## Noise frequency per metre. Higher = finer, more tattered edge.
 @export_range(0.5, 20.0, 0.1) var edge_noise_scale := 5.0
-## How fast the edge pattern flows upward.
-@export_range(0.0, 2.0, 0.01, "suffix:m/s") var edge_flow := 0.25
 ## Opacity of the solid part while any transition is under way (1 = fully opaque).
 @export_range(0.0, 1.0, 0.01) var body_opacity := 1.0
 ## How much colour the solid part loses at full intensity.
 @export_range(0.0, 1.0, 0.01) var desaturate := 0.5
-@export var glow_color := Color(0.55, 0.8, 0.75)
-## Fresnel rim along the silhouette.
-@export_range(0.0, 2.0, 0.01) var rim_strength := 0.35
-## Glow along the dissolving edge.
-@export_range(0.0, 2.0, 0.01) var edge_glow := 0.2
 
-@export_group("Smoke")
-@export var smoke_enabled := true
-## Particles alive at full intensity. Takes effect on rebuild().
-@export_range(8, 2000, 1) var smoke_amount := 360
-## Takes effect on rebuild().
-@export_range(0.2, 8.0, 0.1, "suffix:s") var smoke_lifetime := 3.0
-## Colour of thin / lit smoke.
-@export var smoke_lit_color := Color(0.62, 0.7, 0.7)
-## Colour of dense smoke in its own shadow.
-@export var smoke_shadow_color := Color(0.16, 0.2, 0.22)
-## Opacity of a single puff. Keep it low: smoke is many faint layers, not a few opaque ones.
-@export_range(0.0, 1.0, 0.01) var smoke_opacity := 0.3
-## Width of a puff at the end of its life (it is born at a quarter of this and grows).
-@export_range(0.05, 3.0, 0.01, "suffix:m") var smoke_size := 0.9
-## Height / width of a puff, stretched along its motion. 1 = round.
-@export_range(1.0, 4.0, 0.05) var smoke_stretch := 1.7
-## Buoyancy: upward acceleration.
-@export_range(-1.0, 2.0, 0.01, "suffix:m/s²") var smoke_rise := 0.45
-## Initial push away from the surface.
-@export_range(0.0, 2.0, 0.01, "suffix:m/s") var smoke_push := 0.15
-## Curling. Weak at birth (smooth, laminar), full strength later (turbulent). 0 = straight paths.
-@export_range(0.0, 1.0, 0.01) var smoke_turbulence := 0.35
-## How much more smoke comes off the moving edge than off fully dissolved areas.
+@export_group("Emission")
+@export var particles_enabled := true
+## How much more comes off the moving edge than off fully dissolved areas.
 @export_range(0.0, 10.0, 0.1) var edge_smoke := 2.0
 ## Same seed = same emission pattern. Pool takes effect on rebuild().
 @export var emission_seed := 1
+## World height of the floor, for elements that collide with it (water).
+@export var floor_height := 0.0
 
 @export_group("Blob")
-## Near full intensity, gather the smoke into a churning sphere instead of the body's shape.
+## Near full intensity, gather the medium into a sphere instead of the body's shape.
+## How it behaves there (pull, swirl, drag) comes from the element.
 @export var blob_enabled := false
 ## Where the blob forms. Empty = chest height (62 % of the body) above the body's centre.
 @export var blob_center: Node3D
 @export_range(0.05, 3.0, 0.01, "suffix:m") var blob_radius := 0.45
-## Intensity where the smoke starts moving from the body onto the sphere (done at 1).
+## Intensity where the medium starts moving from the body onto the sphere (done at 1).
 @export_range(0.0, 0.99, 0.01) var blob_start := 0.7
-## How hard puffs are pulled back toward the centre once the blob has formed.
-@export_range(0.0, 20.0, 0.1) var blob_pull := 3.0
-## Buoyancy once the blob has formed (replaces smoke_rise), so it holds together.
-@export_range(-1.0, 2.0, 0.01, "suffix:m/s²") var blob_rise := 0.05
-## Puff size once the blob has formed, relative to smoke_size.
-@export_range(0.1, 2.0, 0.01) var blob_puff_scale := 1.3
-## Drag once the blob has formed. Higher = puffs settle and churn instead of overshooting.
-@export_range(0.0, 10.0, 0.1) var blob_damping := 2.5
 
 var _surfaces: Array[Dictionary] = [] # {mesh, surface, original, ghost}
 var _swapped := false
@@ -101,17 +77,21 @@ var _pool_pos := PackedVector3Array()
 var _pool_nrm := PackedVector3Array()
 var _emit_pos := PackedVector3Array() # currently chosen emission points (for debug)
 var _emit_nrm := PackedVector3Array()
-var _ghost_inside := true          # true: ghost grows from the point; false: solid grows from it
+var _ghost_inside := true          # true: medium grows from the point; false: solid grows from it
 var _rest := 0                     # 0 or 1 while resting at that value, -1 mid-transition
 var _origin := Vector3.ZERO        # latched reveal origin, body space
 var _origin_name := "body base"
 var _origin_reach := 1.0           # distance from origin to the farthest part of the body
 var _last_emission_key := Vector2(NAN, NAN) # (front, blob) the emission points were chosen for
-var _attractor: GPUParticlesAttractorSphere3D
 var _time := 0.0                   # game time for shaders (TIME ignores Engine.time_scale)
+var _default_element := GhostElement.new()
+var _built_element: GhostElement   # element the particles were built for
 var _particles: GPUParticles3D
 var _process_mat: ParticleProcessMaterial
-var _smoke_material: ShaderMaterial
+var _medium_material: ShaderMaterial
+var _attractor: GPUParticlesAttractorSphere3D
+var _swirl: GPUParticlesAttractorVectorField3D
+var _floor: GPUParticlesCollisionBox3D
 var _point_image: Image
 var _normal_image: Image
 var _point_texture: ImageTexture
@@ -124,10 +104,11 @@ func _ready() -> void:
 	_debug_view = DebugDraw.make_view(_debug_mesh)
 	_debug_view.visible = false
 	add_child(_debug_view)
+	_build_helpers()
 	rebuild()
 
 
-## Re-measures the targets, rebuilds ghost materials and smoke. Call after changing targets.
+## Re-measures the targets, rebuilds ghost materials and particles. Call after changing targets.
 func rebuild() -> void:
 	_restore_materials()
 	_surfaces.clear()
@@ -141,12 +122,11 @@ func rebuild() -> void:
 				ghost = _make_ghost_material(target.get_active_material(s)),
 			})
 	_sample_surfaces()
-	_build_smoke()
+	_build_particles()
 	_latch_origin()
-	_last_emission_key = Vector2(NAN, NAN)
 
 
-## Removes all smoke immediately.
+## Removes all particles immediately.
 func clear_smoke() -> void:
 	if _particles:
 		_particles.restart()
@@ -157,9 +137,14 @@ func set_debug(enabled: bool) -> void:
 
 
 func get_debug_text() -> String:
-	return "GhostWrap: intensity %.2f   %s from %s   front %.2f   blob %.2f   smoke rate %d/%d   %d emission points" % [
-		intensity, "ghosting" if _ghost_inside else "revealing", _origin_name, _front(), _blob_amount(),
-		int(smoke_amount * _particles.amount_ratio) if _particles else 0, smoke_amount, _emit_pos.size()]
+	var el := _element()
+	return "GhostWrap: %s   intensity %.2f   %s from %s   front %.2f   blob %.2f   particles %d/%d" % [
+		el.display_name, intensity, "ghosting" if _ghost_inside else "revealing", _origin_name,
+		_front(), _blob_amount(), int(el.amount * _particles.amount_ratio) if _particles else 0, el.amount]
+
+
+func _element() -> GhostElement:
+	return element if element else _default_element
 
 
 func _process(delta: float) -> void:
@@ -175,6 +160,9 @@ func _process(delta: float) -> void:
 		_latch_origin()
 		_rest = -1
 
+	if _element() != _built_element:
+		_build_particles() # amount, lifetime and blend mode need a new particle system
+
 	var fade_on := fade_enabled and intensity > 0.0005
 	if fade_on != _swapped:
 		if fade_on:
@@ -184,13 +172,13 @@ func _process(delta: float) -> void:
 	if _swapped:
 		_update_materials()
 	_update_emission()
-	_update_smoke()
+	_update_particles()
 	if _debug_view.visible:
 		_draw_debug()
 
 
 ## Radius of the dissolve front, in units of _origin_reach. Matches the body shader.
-## Ghosting: ghost inside the front, which grows from the origin. Revealing: solid inside it.
+## Ghosting: medium inside the front, which grows from the origin. Revealing: solid inside it.
 func _front() -> float:
 	var span := 1.0 + edge_noise + edge_band
 	if _ghost_inside:
@@ -202,6 +190,19 @@ func _front() -> float:
 func _visibility(d: float, front: float) -> float:
 	var s := smoothstep(front - edge_band, front, d)
 	return s if _ghost_inside else 1.0 - s
+
+
+## 0 = medium in the body's shape, 1 = medium gathered into the blob sphere.
+func _blob_amount() -> float:
+	return smoothstep(blob_start, 1.0, intensity) if blob_enabled else 0.0
+
+
+## Blob centre in body space.
+func _blob_center_local() -> Vector3:
+	if blob_center and is_instance_valid(blob_center):
+		return global_transform.affine_inverse() * blob_center.global_position
+	var c := _bounds.get_center()
+	return Vector3(c.x, _bounds.position.y + _bounds.size.y * 0.62, c.z)
 
 
 func _latch_origin() -> void:
@@ -243,6 +244,7 @@ func _restore_materials() -> void:
 
 
 func _update_materials() -> void:
+	var el := _element()
 	var world_to_body := global_transform.affine_inverse()
 	var front := _front()
 	for entry in _surfaces:
@@ -257,12 +259,14 @@ func _update_materials() -> void:
 		m.set_shader_parameter("edge_band", edge_band)
 		m.set_shader_parameter("edge_noise", edge_noise)
 		m.set_shader_parameter("edge_noise_scale", edge_noise_scale)
-		m.set_shader_parameter("edge_flow", edge_flow)
+		m.set_shader_parameter("edge_flow", el.edge_flow)
 		m.set_shader_parameter("body_opacity", body_opacity)
 		m.set_shader_parameter("desaturate", desaturate)
-		m.set_shader_parameter("glow_color", glow_color)
-		m.set_shader_parameter("rim_strength", rim_strength)
-		m.set_shader_parameter("edge_glow", edge_glow)
+		m.set_shader_parameter("glow_color", el.glow_color)
+		m.set_shader_parameter("rim_strength", el.rim_strength)
+		m.set_shader_parameter("edge_glow", el.edge_glow)
+		m.set_shader_parameter("scorch_color", el.scorch_color)
+		m.set_shader_parameter("scorch_width", el.scorch_width)
 
 
 ## Samples POOL_POINTS area-weighted points on the targets' triangles (in this node's space)
@@ -317,22 +321,9 @@ func _sample_surfaces() -> void:
 		_pool_nrm.append((na + (corner_normals[t * 3 + 1] - na) * u + (corner_normals[t * 3 + 2] - na) * v).normalized())
 
 
-## 0 = smoke in the body's shape, 1 = smoke gathered into the blob sphere.
-func _blob_amount() -> float:
-	return smoothstep(blob_start, 1.0, intensity) if blob_enabled else 0.0
-
-
-## Blob centre in body space.
-func _blob_center_local() -> Vector3:
-	if blob_center and is_instance_valid(blob_center):
-		return global_transform.affine_inverse() * blob_center.global_position
-	var c := _bounds.get_center()
-	return Vector3(c.x, _bounds.position.y + _bounds.size.y * 0.62, c.z)
-
-
 ## Re-chooses the emission points from the pool whenever the front moves: dissolved areas
 ## emit, the moving edge emits extra, solid areas emit nothing. With the blob forming, each
-## point slides from the body surface toward its own point on the blob sphere.
+## point slides from the body surface toward its own point inside the blob sphere.
 func _update_emission() -> void:
 	if not _particles or _pool_pos.is_empty():
 		return
@@ -375,100 +366,162 @@ func _update_emission() -> void:
 	_normal_texture.update(_normal_image)
 
 
-func _build_smoke() -> void:
-	if _particles:
-		_particles.queue_free()
-		_particles = null
-	if _pool_pos.is_empty():
-		return
-
+## Nodes that don't depend on the element: emission textures, blob attractors, floor collider.
+func _build_helpers() -> void:
 	_point_image = Image.create(EMISSION_POINTS, 1, false, Image.FORMAT_RGBF)
 	_normal_image = Image.create(EMISSION_POINTS, 1, false, Image.FORMAT_RGBF)
 	_point_texture = ImageTexture.create_from_image(_point_image)
 	_normal_texture = ImageTexture.create_from_image(_normal_image)
 
-	_process_mat = ParticleProcessMaterial.new()
-	_process_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_DIRECTED_POINTS
-	_process_mat.emission_point_texture = _point_texture
-	_process_mat.emission_normal_texture = _normal_texture
-	_process_mat.emission_point_count = EMISSION_POINTS
-	_process_mat.spread = 25.0
-	_process_mat.damping_min = 0.3
-	_process_mat.damping_max = 0.6
-	# The particle's Y axis follows its velocity; the shader stretches the quad along it.
-	_process_mat.particle_flag_align_y = true
-	_process_mat.scale_min = 0.7
-	_process_mat.scale_max = 1.0
-	# Entrainment: a plume widens as it rises. Born at 25 % size, grows ~4x.
-	_process_mat.scale_curve = _curve_texture([Vector2(0.0, 0.25), Vector2(1.0, 1.0)], 1.2)
-	# Opacity over life: quick appear, long dispersal. (The shader also thins the density.)
-	var fade := Gradient.new()
-	fade.offsets = PackedFloat32Array([0.0, 0.1, 0.5, 1.0])
-	fade.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 1), Color(1, 1, 1, 0.55), Color(1, 1, 1, 0)])
-	var fade_texture := GradientTexture1D.new()
-	fade_texture.gradient = fade
-	_process_mat.color_ramp = fade_texture
-	# Laminar -> turbulent: smooth near the body, churning higher up.
-	_process_mat.turbulence_enabled = true
-	_process_mat.turbulence_noise_strength = 1.0
-	_process_mat.turbulence_noise_scale = 2.0
-	_process_mat.turbulence_noise_speed = Vector3(0.0, 0.25, 0.0)
-	_process_mat.turbulence_influence_over_life = _curve_texture([Vector2(0.0, 0.1), Vector2(0.5, 1.0), Vector2(1.0, 1.0)])
-
-	_smoke_material = ShaderMaterial.new()
-	_smoke_material.shader = SMOKE_SHADER
-	var quad := QuadMesh.new()
-	quad.material = _smoke_material
-
-	_particles = GPUParticles3D.new()
-	_particles.name = "Smoke"
-	_particles.amount = smoke_amount
-	_particles.lifetime = smoke_lifetime
-	_particles.local_coords = false
-	_particles.draw_order = GPUParticles3D.DRAW_ORDER_VIEW_DEPTH
-	_particles.visibility_aabb = AABB(Vector3(-3.0, -1.0, -3.0), Vector3(6.0, _bounds.size.y + 4.0, 6.0))
-	_particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_particles.process_material = _process_mat
-	_particles.draw_pass_1 = quad
-	_particles.amount_ratio = 0.0
-	add_child(_particles)
-
-	# Holds the blob together: pulls world-space puffs back toward the centre.
-	if _attractor:
-		_attractor.queue_free()
+	# Pulls puffs toward the blob centre.
 	_attractor = GPUParticlesAttractorSphere3D.new()
 	_attractor.name = "BlobAttractor"
 	_attractor.directionality = 0.0
 	_attractor.attenuation = 0.6
 	_attractor.strength = 0.0
 	add_child(_attractor)
-	_update_smoke()
+
+	# Turns them around the blob's vertical axis (a whirlwind), drifting slightly inward.
+	# Vector field textures store each vector as v * 0.5 + 0.5, with +Y pointing down in texture space.
+	var layers: Array[Image] = []
+	for z in SWIRL_RES:
+		var layer := Image.create(SWIRL_RES, SWIRL_RES, false, Image.FORMAT_RGBF)
+		for y in SWIRL_RES:
+			for x in SWIRL_RES:
+				var p := Vector3(x, y, z) / float(SWIRL_RES - 1) * 2.0 - Vector3.ONE # -1..1
+				var flat := Vector3(p.x, 0.0, p.z)
+				var v := Vector3.ZERO
+				if flat.length() > 0.001:
+					v = Vector3.UP.cross(flat).normalized() - flat * 0.3
+					v *= clampf(flat.length() * 2.0, 0.0, 1.0)
+				v.y = -v.y # texture space
+				v = v.limit_length(1.0)
+				layer.set_pixel(x, y, Color(v.x * 0.5 + 0.5, v.y * 0.5 + 0.5, v.z * 0.5 + 0.5))
+		layers.append(layer)
+	var field := ImageTexture3D.new()
+	field.create(Image.FORMAT_RGBF, SWIRL_RES, SWIRL_RES, SWIRL_RES, false, layers)
+	_swirl = GPUParticlesAttractorVectorField3D.new()
+	_swirl.name = "BlobSwirl"
+	_swirl.texture = field
+	_swirl.strength = 0.0
+	add_child(_swirl)
+
+	# A wide box whose top is the floor; follows the body sideways (top_level, world space).
+	_floor = GPUParticlesCollisionBox3D.new()
+	_floor.name = "FloorCollision"
+	_floor.top_level = true
+	_floor.size = Vector3(16.0, 1.0, 16.0)
+	add_child(_floor)
 
 
-func _update_smoke() -> void:
+## The particle system for the current element. Rebuilt when the element changes.
+func _build_particles() -> void:
+	var el := _element()
+	_built_element = el
+	_last_emission_key = Vector2(NAN, NAN)
+	if _particles:
+		_particles.queue_free()
+		_particles = null
+	if _pool_pos.is_empty():
+		return
+
+	_process_mat = ParticleProcessMaterial.new()
+	_process_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_DIRECTED_POINTS
+	_process_mat.emission_point_texture = _point_texture
+	_process_mat.emission_normal_texture = _normal_texture
+	_process_mat.emission_point_count = EMISSION_POINTS
+	# The particle's Y axis follows its velocity; the shader stretches the quad along it.
+	_process_mat.particle_flag_align_y = true
+	_process_mat.scale_min = 0.7
+	_process_mat.scale_max = 1.0
+	# Growth over life (smoke: entrainment, ~4x; droplets: barely).
+	_process_mat.scale_curve = _curve_texture([Vector2(0.0, el.birth_scale), Vector2(1.0, 1.0)], 1.2)
+	var ramp := el.color_over_life
+	if not ramp:
+		ramp = Gradient.new()
+		ramp.offsets = PackedFloat32Array([0.0, 0.1, 0.5, 1.0])
+		ramp.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 1), Color(1, 1, 1, 0.55), Color(1, 1, 1, 0)])
+	var ramp_texture := GradientTexture1D.new()
+	ramp_texture.gradient = ramp
+	ramp_texture.use_hdr = true
+	_process_mat.color_ramp = ramp_texture
+	# Laminar -> turbulent: smooth near the body, churning later.
+	_process_mat.turbulence_enabled = true
+	_process_mat.turbulence_noise_strength = 1.0
+	_process_mat.turbulence_noise_speed = Vector3(0.0, 0.25, 0.0)
+	_process_mat.turbulence_influence_over_life = _curve_texture([Vector2(0.0, 0.1), Vector2(0.5, 1.0), Vector2(1.0, 1.0)])
+	if el.collide_with_floor:
+		_process_mat.collision_mode = ParticleProcessMaterial.COLLISION_RIGID
+		_process_mat.collision_bounce = el.bounce
+		_process_mat.collision_friction = el.friction
+
+	_medium_material = ShaderMaterial.new()
+	_medium_material.shader = MEDIUM_ADD_SHADER if el.additive else MEDIUM_MIX_SHADER
+	var quad := QuadMesh.new()
+	quad.material = _medium_material
+
+	_particles = GPUParticles3D.new()
+	_particles.name = "Medium"
+	_particles.amount = el.amount
+	_particles.lifetime = el.lifetime
+	_particles.local_coords = false
+	_particles.draw_order = GPUParticles3D.DRAW_ORDER_VIEW_DEPTH
+	_particles.visibility_aabb = AABB(Vector3(-4.0, -2.0, -4.0), Vector3(8.0, _bounds.size.y + 5.0, 8.0))
+	_particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_particles.collision_base_size = el.size * el.birth_scale * 0.5
+	_particles.process_material = _process_mat
+	_particles.draw_pass_1 = quad
+	_particles.amount_ratio = 0.0
+	add_child(_particles)
+	_update_particles()
+
+
+func _update_particles() -> void:
 	if not _particles:
 		return
-	_particles.emitting = smoke_enabled
-	_particles.amount_ratio = intensity
-	_process_mat.initial_velocity_min = smoke_push * 0.4
-	_process_mat.initial_velocity_max = smoke_push
+	var el := _element()
 	var blob := _blob_amount()
-	_process_mat.gravity = Vector3(0.0, lerpf(smoke_rise, blob_rise, blob), 0.0)
-	_process_mat.turbulence_influence_min = smoke_turbulence * 0.5
-	_process_mat.turbulence_influence_max = smoke_turbulence
+	_particles.emitting = particles_enabled
+	_particles.amount_ratio = intensity
+	# Blob puffs are born inside the sphere: no outward push, so the pull and swirl alone set
+	# their motion (otherwise stretched media draw radial petals before the swirl takes over).
+	_process_mat.initial_velocity_min = el.push * 0.4 * (1.0 - blob)
+	_process_mat.initial_velocity_max = el.push * (1.0 - blob)
+	_process_mat.spread = el.spread
+	_process_mat.gravity = el.gravity.lerp(el.blob_gravity, blob)
+	_process_mat.turbulence_noise_scale = el.turbulence_scale
+	_process_mat.turbulence_influence_min = el.turbulence * 0.5
+	_process_mat.turbulence_influence_max = el.turbulence
 	# In the blob, puffs swing through the centre: velocity stretch would turn every swing into a
-	# radial streak, and low drag keeps them overshooting. Round puffs + high drag = a churning orb.
-	_process_mat.damping_min = lerpf(0.3, blob_damping * 0.75, blob * blob)
-	_process_mat.damping_max = lerpf(0.6, blob_damping, blob * blob)
-	var size := smoke_size * lerpf(1.0, blob_puff_scale, blob)
-	(_particles.draw_pass_1 as QuadMesh).size = Vector2(size, size * lerpf(smoke_stretch, 1.0, blob))
-	_attractor.position = _blob_center_local()
+	# radial streak, and low drag keeps them overshooting. Round puffs (element's blob_stretch)
+	# + high drag = a churning orb.
+	_process_mat.damping_min = lerpf(el.damping * 0.7, el.blob_damping * 0.75, blob * blob)
+	_process_mat.damping_max = lerpf(el.damping, el.blob_damping, blob * blob)
+	var size := el.size * lerpf(1.0, el.blob_puff_scale, blob)
+	(_particles.draw_pass_1 as QuadMesh).size = Vector2(size, size * lerpf(el.stretch, el.blob_stretch, blob))
+
+	var m := _medium_material
+	m.set_shader_parameter("lit_color", el.lit_color)
+	m.set_shader_parameter("shadow_color", el.shadow_color)
+	m.set_shader_parameter("opacity", el.opacity)
+	m.set_shader_parameter("field_scale", el.field_scale)
+	m.set_shader_parameter("field_flow", el.field_flow)
+	m.set_shader_parameter("warp", el.warp)
+	m.set_shader_parameter("thin_start", el.thin_start)
+	m.set_shader_parameter("thin_end", el.thin_end)
+	m.set_shader_parameter("softness", el.softness)
+	m.set_shader_parameter("shade_contrast", el.shade_contrast)
+	m.set_shader_parameter("scaled_time", _time)
+
+	var center := _blob_center_local()
+	_attractor.position = center
 	_attractor.radius = blob_radius * 3.0
-	_attractor.strength = blob_pull * blob
-	_smoke_material.set_shader_parameter("lit_color", smoke_lit_color)
-	_smoke_material.set_shader_parameter("shadow_color", smoke_shadow_color)
-	_smoke_material.set_shader_parameter("opacity", smoke_opacity)
-	_smoke_material.set_shader_parameter("scaled_time", _time)
+	_attractor.strength = el.blob_pull * blob
+	_swirl.position = center
+	_swirl.size = Vector3.ONE * blob_radius * 4.0
+	_swirl.strength = el.blob_swirl * blob
+	var g := global_position
+	_floor.global_position = Vector3(g.x, floor_height - _floor.size.y * 0.5, g.z)
 
 
 func _curve_texture(points: Array[Vector2], end_tangent := 0.0) -> CurveTexture:
@@ -498,21 +551,17 @@ func _draw_debug() -> void:
 		_debug_mesh.surface_add_vertex(_origin + axis * 0.1)
 	var radius := maxf(_front() - edge_band * 0.5, 0.0) * _origin_reach
 	if radius > 0.0:
-		_debug_mesh.surface_set_color(Color(1.0, 0.85, 0.3))
-		var planes := [[Vector3.RIGHT, Vector3.UP], [Vector3.RIGHT, Vector3.BACK], [Vector3.UP, Vector3.BACK]]
-		for plane in planes:
-			for s in 48:
-				var a0 := TAU * s / 48.0
-				var a1 := TAU * (s + 1) / 48.0
-				_debug_mesh.surface_add_vertex(_origin + (plane[0] * cos(a0) + plane[1] * sin(a0)) * radius)
-				_debug_mesh.surface_add_vertex(_origin + (plane[0] * cos(a1) + plane[1] * sin(a1)) * radius)
+		_draw_sphere(_origin, radius, Color(1.0, 0.85, 0.3))
 	if _blob_amount() > 0.0:
-		var c := _blob_center_local()
-		_debug_mesh.surface_set_color(Color(0.75, 0.55, 1.0))
-		for plane in [[Vector3.RIGHT, Vector3.UP], [Vector3.RIGHT, Vector3.BACK], [Vector3.UP, Vector3.BACK]]:
-			for s in 48:
-				var a0 := TAU * s / 48.0
-				var a1 := TAU * (s + 1) / 48.0
-				_debug_mesh.surface_add_vertex(c + (plane[0] * cos(a0) + plane[1] * sin(a0)) * blob_radius)
-				_debug_mesh.surface_add_vertex(c + (plane[0] * cos(a1) + plane[1] * sin(a1)) * blob_radius)
+		_draw_sphere(_blob_center_local(), blob_radius, Color(0.75, 0.55, 1.0))
 	_debug_mesh.surface_end()
+
+
+func _draw_sphere(center: Vector3, radius: float, color: Color) -> void:
+	_debug_mesh.surface_set_color(color)
+	for plane in [[Vector3.RIGHT, Vector3.UP], [Vector3.RIGHT, Vector3.BACK], [Vector3.UP, Vector3.BACK]]:
+		for s in 48:
+			var a0 := TAU * s / 48.0
+			var a1 := TAU * (s + 1) / 48.0
+			_debug_mesh.surface_add_vertex(center + (plane[0] * cos(a0) + plane[1] * sin(a0)) * radius)
+			_debug_mesh.surface_add_vertex(center + (plane[0] * cos(a1) + plane[1] * sin(a1)) * radius)

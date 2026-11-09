@@ -1,13 +1,12 @@
-// Ghost Wrap — smoke puff.
+// Ghost Wrap — medium puff (shared by all elements; included by ghost_medium_mix/_add).
 //
 // A puff is NOT a picture of smoke. It is a soft window onto one continuous density field
-// that lives in world space and scrolls upward. Overlapping puffs reveal the same structure,
-// so many faint puffs merge into one volume instead of reading as separate balls.
+// that lives in world space and drifts (field_flow). Overlapping puffs reveal the same
+// structure, so many faint puffs merge into one volume instead of reading as separate balls.
 //
 // Each quad is stretched along the particle's velocity (the process material aligns the
 // particle's Y axis to it) and turned around that axis to face the camera -> streaks, not dots.
-shader_type spatial;
-render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabled;
+// COLOR (the element's colour over life) multiplies the shading; values above 1 glow.
 
 #include "res://shared/shaders/noise.gdshaderinc"
 
@@ -15,7 +14,7 @@ uniform vec3 lit_color : source_color = vec3(0.62, 0.7, 0.7);
 uniform vec3 shadow_color : source_color = vec3(0.16, 0.2, 0.22);
 uniform float opacity = 0.15;
 uniform float field_scale = 2.2;    // density field frequency per metre
-uniform float field_rise = 0.35;    // m/s the field scrolls upward
+uniform vec3 field_flow = vec3(0.0, 0.35, 0.0); // m/s the field drifts through the world
 uniform float warp = 0.6;           // curling distortion of the field
 uniform float thin_start = 0.2;     // density threshold at birth ...
 uniform float thin_end = 0.55;      // ... and at death: the puff disperses into wisps
@@ -34,8 +33,7 @@ float fbm(vec2 p) {
 
 // Density of the shared field at a world position. Two projections so it varies on every axis.
 float field(vec3 w) {
-	vec3 p = w * field_scale;
-	p.y -= scaled_time * field_rise * field_scale;
+	vec3 p = (w - field_flow * scaled_time) * field_scale;
 	vec2 q = vec2(p.x + 0.6 * p.z, p.y);
 	q += warp * (vec2(value_noise(q * 0.7 + 3.0), value_noise(q * 0.7 + 9.0)) - 0.5) * 2.0;
 	return 0.6 * fbm(q) + 0.4 * fbm(vec2(p.z - 0.5 * p.x, p.y * 1.2) + 50.0);

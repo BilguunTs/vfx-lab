@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="GhostElement" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://experiments/06_ghost_wrap/ghost_element.gd" id="1_el"]
+
+[resource]
+script = ExtResource("1_el")
+display_name = "Smoke"

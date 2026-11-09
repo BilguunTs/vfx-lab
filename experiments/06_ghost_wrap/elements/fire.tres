@@ -1,0 +1,45 @@
+[gd_resource type="Resource" script_class="GhostElement" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://experiments/06_ghost_wrap/ghost_element.gd" id="1_el"]
+
+[sub_resource type="Gradient" id="Gradient_fire"]
+offsets = PackedFloat32Array(0, 0.06, 0.3, 0.6, 1)
+colors = PackedColorArray(1.8, 1.2, 0.55, 0, 1.8, 1.2, 0.55, 1, 1.4, 0.5, 0.12, 0.85, 0.6, 0.1, 0.02, 0.55, 0.08, 0.01, 0, 0)
+
+[resource]
+script = ExtResource("1_el")
+display_name = "Fire"
+amount = 500
+lifetime = 0.9
+color_over_life = SubResource("Gradient_fire")
+lit_color = Color(1, 1, 1, 1)
+shadow_color = Color(0.5, 0.45, 0.4, 1)
+opacity = 0.4
+additive = true
+size = 0.3
+birth_scale = 0.6
+stretch = 2.8
+field_scale = 4.0
+field_flow = Vector3(0, 1.8, 0)
+warp = 0.9
+thin_start = 0.25
+thin_end = 0.75
+softness = 0.3
+shade_contrast = 1.5
+gravity = Vector3(0, 3, 0)
+push = 0.35
+spread = 20.0
+damping = 1.0
+turbulence = 0.5
+turbulence_scale = 3.0
+glow_color = Color(1, 0.45, 0.12, 1)
+edge_glow = 1.4
+rim_strength = 0.2
+edge_flow = Vector3(0, 0.8, 0)
+scorch_color = Color(0.04, 0.03, 0.025, 0.95)
+scorch_width = 0.12
+blob_gravity = Vector3(0, 0.6, 0)
+blob_pull = 4.0
+blob_swirl = 1.5
+blob_damping = 2.0
+blob_puff_scale = 1.6

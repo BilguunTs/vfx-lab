@@ -154,3 +154,23 @@
   heavily, obvious as rings once they were round and sparse. Now it uses the shared field only.
 - Small, round, non-overlapping puffs read as dots again (same lesson as the first pass):
   blob puffs are 1.3× larger so they merge.
+
+## 2026-11-09 — Ghost wrap: swappable elements (smoke, fire, water, wind)
+
+- The medium became a `GhostElement` resource (`elements/*.tres`): colour over life, puff
+  shape, density field, motion, body-edge treatment, blob behaviour. The component keeps the
+  body side (dissolve, reveal point, blob placement). Shader split into a shared include plus
+  mix / additive wrappers (blend mode is compile-time in Godot).
+- Fire: additive, 0.9 s life, strong buoyancy, HDR colour ramp; body chars ahead of a glowing
+  edge (`scorch_color`). Water: gravity −9, long thin streaks, floor collision
+  (GPUParticlesCollisionBox3D), wet darkening. Wind: sideways acceleration, faint dusty streaks;
+  blob is a whirlwind from a procedural GPUParticlesAttractorVectorField3D.
+- **Lesson — physics is identity.** Colour alone didn't separate them; acceleration direction,
+  lifetime, stretch and blend mode did.
+- **First-pass misses:** fire too blown out (HDR 3 → 1.8, opacity 0.4); water read as pale ice
+  flakes (darker, thinner, faster); wind read as hay (one direction, fainter, less turbulence).
+  Water blob read as beads (puffs 5× larger to merge); wind blob drew radial petals: the inward
+  pull beat the swirl and the outward birth push drew radial streaks (push → 0 in the blob,
+  pull 2 → 0.6, `blob_stretch` per element).
+- Test-harness note: scripted screenshots hang when the test window is covered (macOS stops
+  drawing it). Run with `--always-on-top`.

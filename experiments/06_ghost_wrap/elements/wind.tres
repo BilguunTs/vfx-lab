@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="GhostElement" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://experiments/06_ghost_wrap/ghost_element.gd" id="1_el"]
+
+[sub_resource type="Gradient" id="Gradient_wind"]
+offsets = PackedFloat32Array(0, 0.15, 0.5, 1)
+colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0.6, 1, 1, 1, 0)
+
+[resource]
+script = ExtResource("1_el")
+display_name = "Wind"
+amount = 400
+lifetime = 1.8
+color_over_life = SubResource("Gradient_wind")
+lit_color = Color(0.72, 0.7, 0.64, 1)
+shadow_color = Color(0.4, 0.39, 0.36, 1)
+opacity = 0.1
+size = 0.25
+birth_scale = 0.4
+stretch = 7.0
+field_scale = 3.0
+field_flow = Vector3(4, 0, 0.8)
+warp = 1.2
+thin_start = 0.3
+thin_end = 0.7
+softness = 0.3
+shade_contrast = 1.0
+gravity = Vector3(4, 0.3, 0.8)
+push = 0.2
+spread = 15.0
+damping = 0.15
+turbulence = 0.22
+turbulence_scale = 1.5
+glow_color = Color(0.8, 0.85, 0.8, 1)
+edge_glow = 0.1
+rim_strength = 0.2
+edge_flow = Vector3(1.2, 0, 0.2)
+blob_gravity = Vector3(0, 0, 0)
+blob_pull = 0.6
+blob_swirl = 10.0
+blob_damping = 1.0
+blob_puff_scale = 1.2
+blob_stretch = 4.0
