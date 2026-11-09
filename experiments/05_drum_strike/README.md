@@ -3,8 +3,9 @@
 **What it demonstrates:** the drum strike built as independent layers under one trigger.
 Currently: `PulseRing` (the main ring from experiment 04), `EchoRing` (a fainter, delayed copy)
 `DustBurst` (Phase B: ground dust kicked out by the strike), `RuneSeal` (Phase C: a circle
-of glyphs that ignites, cools and burns away), `SpiritMotes` (Phase E: the residue), `Shockwave` (air distortion from experiment 07) and
-`DebrisField` (Phase D: stone shards the pulse kicks as it passes).
+of glyphs that ignites, cools and burns away), `SpiritMotes` (Phase E: the residue), `Shockwave` (air distortion from experiment 07),
+`DebrisField` (Phase D: stone shards the pulse kicks as it passes) and `SpiritWisp`
+(experiment 08: a shy spirit that flinches when the pulse reaches it).
 
 **Full timeline:** impact 0–0.3 s (rings, dust, seal ignition) → decay 0.3–2.4 s (echo, seal
 cools and burns) → aftermath 0.5–5.3 s (motes rise and fade).
@@ -24,7 +25,7 @@ instead of switching off.
   RuneSeal, SpiritMotes, Shockwave). Every `DrumStrike.play()` instantiates a fresh voice, applies
   strength / variation / mutes / debug to it, and plays it. A voice frees itself once all its
   layers report `is_active() == false` (~5 s).
-- **Persistent layers** are `DrumStrike`'s own children (the `DebrisField`). They exist once;
+- **Persistent layers** are `DrumStrike`'s own children (`DebrisField`, `SpiritWisp`). They exist once;
   each new voice's PulseRing is handed to them via `add_push()`.
 - **Live tuning** (Tab in the lab): voices are fresh instances, so tweaks go through
   `set_tuning(layer, property, value)`, are recorded, and applied to every new voice.

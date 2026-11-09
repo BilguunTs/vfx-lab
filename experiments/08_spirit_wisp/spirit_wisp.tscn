@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://experiments/08_spirit_wisp/spirit_wisp.gd" id="1_wisp"]
+
+[node name="SpiritWisp" type="Node3D"]
+script = ExtResource("1_wisp")

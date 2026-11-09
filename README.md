@@ -70,5 +70,6 @@ To try another effect, replace the child of `Lab/EffectSlot`, or make an inherit
 
 - [04 Energy Ring](experiments/04_energy_ring/README.md) — drum strike Phase A: an expanding ground ring.
 - [05 Drum Strike](experiments/05_drum_strike/README.md) — layered strike: pulse ring + echo ring + dust burst + rune seal + spirit motes + debris. **Loaded in the lab.**
+- [08 Spirit Wisp](experiments/08_spirit_wisp/README.md) — a shy spirit that wanders, peeks, flinches from the drum's pulse and returns cautiously; its trail sheds fragments of light. In the drum lab (key 8 mutes it).
 - [07 Shockwave](experiments/07_shockwave/README.md) — air distortion ripple that bends the background outward; a layer of the drum strike (key 6 mutes it).
 - [06 Ghost Wrap](experiments/06_ghost_wrap/README.md) — reusable component: one value (0 model → 1 only smoke) dissolves any meshes into smoke, spreading from a placeable reveal point. Run `ghost_wrap_lab.tscn`.

@@ -222,3 +222,18 @@
 - **Lessons.** `source_color` uniforms are sRGB: the first pass came out 35 % darker than
   intended. Round pebbles at one tone read as snow / polka dots; varied tone and lumpy outlines
   fixed it. For distortion, *lines* (cracks) sell the bend far better than isolated dots.
+
+## 2026-11-09 — Spirit wisp
+
+- `experiments/08_spirit_wisp`: steering-driven wisp (wander noise, curiosity, personal space,
+  hesitation), fear + slower wariness, startle timed to the pulse ring's front via the drum's
+  `add_push`. Breathing additive glow, ground light, ribbon trail.
+- Motion validated from position logs before rendering. First version: the return was a
+  1.8 m/s charge straight back (spring force grows with distance). Fixed by steering to a
+  speed-capped velocity plus a wariness state: now it hovers at a distance and creeps back
+  over ~8 s.
+- Trail: a smooth ribbon read as a comet / laser. Breakup keyed to *life* didn't help (a fast
+  flight is all young), keyed to *distance* it did. Then dashes looked like tracer rounds:
+  tying the width to the same mask makes each fragment swell and taper.
+- **Lesson — validate behaviour numerically.** A position/fear log over 20 s caught the wrong
+  return immediately; stills would have shown nothing.

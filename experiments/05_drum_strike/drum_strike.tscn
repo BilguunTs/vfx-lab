@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://experiments/05_drum_strike/drum_strike.gd" id="1_strike"]
 [ext_resource type="PackedScene" path="res://experiments/05_drum_strike/drum_voice.tscn" id="2_voice"]
 [ext_resource type="Script" path="res://experiments/05_drum_strike/debris_field.gd" id="6_debris"]
+[ext_resource type="PackedScene" path="res://experiments/08_spirit_wisp/spirit_wisp.tscn" id="7_wisp"]
 
 [node name="DrumStrike" type="Node3D"]
 script = ExtResource("1_strike")
@@ -10,3 +11,5 @@ voice_scene = ExtResource("2_voice")
 
 [node name="DebrisField" type="Node3D" parent="."]
 script = ExtResource("6_debris")
+
+[node name="SpiritWisp" parent="." instance=ExtResource("7_wisp")]
