@@ -47,7 +47,7 @@ Remote edits are lost when the game stops — copy values you like into the scen
 lab/            sandbox scene: environment, camera, controls, HUD, debug guides
 experiments/    one folder per experiment, each with its own README
 shared/         code reused by 2+ experiments (noise shader include, debug lines, particle layer)
-docs/           EXPERIMENT_LOG.md — what was tried and learned
+docs/           HANDOVER.md — state, reusable parts, conventions; EXPERIMENT_LOG.md — what was tried and learned
 ```
 
 **Ground.** `lab/ground.gdshader` is procedural packed earth: damp/dry patches, mottling,
@@ -69,7 +69,9 @@ To try another effect, replace the child of `Lab/EffectSlot`, or make an inherit
 ## Experiments
 
 - [04 Energy Ring](experiments/04_energy_ring/README.md) — drum strike Phase A: an expanding ground ring.
-- [05 Drum Strike](experiments/05_drum_strike/README.md) — layered strike: pulse ring + echo ring + dust burst + rune seal + spirit motes + debris. **Loaded in the lab.**
-- [08 Spirit Wisp](experiments/08_spirit_wisp/README.md) — shy spirits that wander, peek, flinch from the drum's pulse and return cautiously; three temperaments (a bold wisp of light, two hooded ghost figures that burst into smoke and re-form) in the drum lab (key 8 mutes them).
-- [07 Shockwave](experiments/07_shockwave/README.md) — air distortion ripple that bends the background outward; a layer of the drum strike (key 6 mutes it).
+- [05 Drum Strike](experiments/05_drum_strike/README.md) — layered strike: pulse ring + echo ring + dust burst + rune seal + spirit motes + shockwave + debris + spirits. **Loaded in the lab.**
 - [06 Ghost Wrap](experiments/06_ghost_wrap/README.md) — reusable component: one value (0 model → 1 only smoke) dissolves any meshes into smoke, spreading from a placeable reveal point. Run `ghost_wrap_lab.tscn`.
+- [07 Shockwave](experiments/07_shockwave/README.md) — air distortion ripple that bends the background outward; a layer of the drum strike (key 6 mutes it).
+- [08 Spirit Wisp](experiments/08_spirit_wisp/README.md) — shy spirits that wander, peek, flinch from the drum's pulse and return cautiously; three temperaments (a bold wisp of light, two hooded ghost figures that burst into smoke and re-form) in the drum lab (key 8 mutes them).
+
+New here? Start with [docs/HANDOVER.md](docs/HANDOVER.md).
