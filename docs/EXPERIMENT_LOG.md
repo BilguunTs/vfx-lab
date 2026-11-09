@@ -259,3 +259,14 @@
   intensity. Caught by the debug text ("ghosting from RevealHead") on a close-up render.
 - Planned "dissolve from the drum side" dropped: re-latching the origin mid-value makes the
   edge jump. Reveal point at the head instead: dissolve feet first, re-form head first.
+
+## 2026-11-09 — Performance check
+
+- Measured with vsync off (macOS still caps at 120 fps; Metal gives no GPU timings here).
+  Normal view: full scene, strike peak, ground shader, spirits all hold 120 fps; render CPU
+  ~0.4 ms.
+- Hotspot: camera 1.6 m from a ghost figure → ~40 fps. Not one slow shader but overdraw:
+  hundreds of large soft puffs covering the screen, and the transparent (dissolving) body no
+  longer hides the puffs behind it. Halving puff count *or* size each restored 120 fps.
+- Fix: `spirit_smoke.tres` for the ghost figures (180 × 0.45 m). Later, with a real game
+  camera: fade/shrink puffs near the camera.

@@ -56,7 +56,10 @@ wariness and only replaces the look:
   it from a half-dissolved rest would make the edge jump.)
 - Smoke trails come from Ghost Wrap itself as the figure moves.
 
-Cost: ~360 smoke particles per figure.
+Smoke: `spirit_smoke.tres`, a child-sized variant of the smoke element (180 puffs of 0.45 m
+instead of 360 of 0.9 m, finer density field). The default smoke dropped a close-up (camera
+1.6 m from a figure) to ~40 fps through overdraw: big soft puffs filling the screen, layered
+hundreds deep, behind a see-through body. The spirit smoke holds 120 fps there (M4, capped).
 
 A group of spirits with different characters is more unsettling than one: the scene has
 *social* behaviour. `preferred_distance` keeps a wisp out of the near zone unless curiosity
