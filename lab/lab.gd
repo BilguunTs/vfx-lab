@@ -14,18 +14,31 @@ const CONTROLS := "SPACE strike   R reset   D debug   T slow-mo   L loop   -/= s
 @export_range(0.2, 10.0, 0.1, "suffix:s") var loop_interval := 2.5
 ## Optional node that delivers the strike (e.g. the drum stand-in). Empty = effect plays instantly.
 @export var striker: Node3D
+## Optional: replaces whatever sits under EffectSlot. Lets an experiment reuse the lab through
+## an inherited scene (see experiments/06_ghost_wrap/ghost_wrap_lab.tscn).
+@export var effect_scene: PackedScene
 
 var _debug := false
 var _looping := false
 var _loop_timer := 0.0
 var _debug_view: MeshInstance3D
+var _effect: Node
 
 @onready var _camera := $Camera
-@onready var _effect: Node = $EffectSlot.get_child(0)
 @onready var _info: Label = $HUD/Info
 
 
 func _ready() -> void:
+	var slot := $EffectSlot
+	if effect_scene:
+		for child in slot.get_children():
+			slot.remove_child(child)
+			child.queue_free()
+		slot.add_child(effect_scene.instantiate())
+	_effect = slot.get_child(0)
+	if striker and not striker.visible:
+		striker = null
+
 	_debug_view = _build_debug_guides()
 	add_child(_debug_view)
 	_set_debug(false)

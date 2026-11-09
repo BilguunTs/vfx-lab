@@ -49,7 +49,9 @@ docs/           EXPERIMENT_LOG.md — what was tried and learned
 `Lab.striker` (the drum stand-in) is optional: with it, Space swings the beater and the effect
 plays on its `impacted` signal; clear it to fire effects instantly.
 
-To try another effect, replace the child of `Lab/EffectSlot`. An effect needs `play()` and
+To try another effect, replace the child of `Lab/EffectSlot`, or make an inherited scene of
+`lab/lab.tscn` that sets `effect_scene` (and hides the drum: a hidden striker is ignored), as
+`experiments/06_ghost_wrap/ghost_wrap_lab.tscn` does. An effect needs `play()` and
 `reset()`; `set_debug(bool)`, `get_debug_text()`, `get_layer_status()` and
 `toggle_layer(index)` are optional.
 
@@ -57,3 +59,4 @@ To try another effect, replace the child of `Lab/EffectSlot`. An effect needs `p
 
 - [04 Energy Ring](experiments/04_energy_ring/README.md) — drum strike Phase A: an expanding ground ring.
 - [05 Drum Strike](experiments/05_drum_strike/README.md) — layered strike: pulse ring + echo ring + dust burst + rune seal + spirit motes + debris. **Loaded in the lab.**
+- [06 Ghost Wrap](experiments/06_ghost_wrap/README.md) — reusable component: one value (0 model → 1 only smoke) dissolves any meshes into smoke, spreading from a placeable reveal point. Run `ghost_wrap_lab.tscn`.

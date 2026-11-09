@@ -99,3 +99,45 @@
   going straight from the skin into the next windup — rhythm instead of a stuck windup.
 - Lab loop interval 5.5 s → 2.5 s, since overlapping no longer cuts anything off.
 - Result: rapid hits read as concentric ripples and a seal that burns brighter with each beat.
+
+## 2026-11-09 — Ghost wrap (experiment 06)
+
+- New reusable component `ghost_wrap.gd`: any meshes + one `intensity` value. Body-space height
+  fade with flowing noise edge (materials swapped only while active), plus GPU smoke from
+  area-weighted surface samples biased toward the fading region (directed emission points).
+- Lab gained `effect_scene` so an experiment can run in it through an inherited scene.
+- **Lesson — smoke that reads as foam is a shape problem.** First pass: 0.45 m puffs at 0.4
+  opacity, born at 35 % size, read as countable bubbles. Bigger (0.8 m), fainter (0.22), born
+  at 50 % size, with noise dominating the round falloff → reads as one smoke volume.
+- **Lesson — replace, don't remove.** The fade alone looks like a hologram cut. Emitting the
+  smoke densest where the body disappears makes the legs read as *becoming* smoke.
+- Edge glow 0.3 tinted the whole lower robe jade (neon read); 0.2 keeps it a hint.
+- Validated with `--write-movie` frames (smoke on/off) and a headless script exercising debug,
+  mute, reset and replay.
+
+## 2026-11-09 — Ghost smoke, second pass: from bubbles to a volume
+
+- Feedback: the smoke still read as floating bubbles. Researched how real smoke behaves and how
+  real-time smoke usually fails (uniform round puffs read as fake).
+- **Lesson — a puff is a window, not a picture.** Each puff had its own noise inside a circle,
+  so the eye counted circles. Sampling one shared density field in *world space* makes
+  overlapping puffs show the same structure → one connected volume. This was the decisive fix.
+- Added the plume behaviours: laminar → turbulent (turbulence over life 10 % → 100 %), widening
+  (scale 25 % → 100 %), dispersal (density threshold rises with age), stretch along velocity,
+  fake self-shadowing from the field's vertical density gradient.
+- Shaders now use game time (`scaled_time`), not `TIME`, so **T** slow motion slows them too.
+- First pass at opacity 0.15 was too faint to read as a volume; 0.3 holds it.
+
+## 2026-11-09 — Ghost wrap: full range + reveal point
+
+- Value now spans model (0) → half (0.5) → only smoke in the body's shape (1). The bottom-up
+  fade became a sphere around a placeable `reveal_point`; transitions start there in both
+  directions (ghosting: point dissolves first; revealing: point solidifies first).
+- Smoke emission points are re-chosen from a 2048-sample pool whenever the front moves:
+  dissolved areas emit, the edge emits extra, solid areas none. At 1 the smoke takes the body's shape.
+- **Lesson — latch on the transition edge, not on the rest state.** First version re-read the
+  reveal point every frame while resting at 0/1. The demo sets the point and moves the value in
+  the same frame, and the parent processes before the child, so the component never saw the new
+  point. Now it is read at the moment intensity *leaves* 0 or 1.
+- Verified with a scripted render (screenshots of feet ghosting, full ghost, head revealing,
+  back to model, hand ghosting) and a mid-transition reversal (front continuous, mode kept).
